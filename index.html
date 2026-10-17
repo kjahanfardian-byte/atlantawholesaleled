@@ -504,6 +504,11 @@
         <select id="f-city"><option value="">All cities</option></select>
         <select id="f-county"><option value="">All counties</option></select>
         <select class="full" id="f-cat"><option value="">All categories</option></select>
+        <div class="full" style="display:flex;gap:14px;font-size:13.5px;align-items:center;flex-wrap:wrap">
+          <label><input type="checkbox" id="f-hasemail"> Has email</label>
+          <label><input type="checkbox" id="f-hasphone"> Has phone</label>
+          <label><input type="checkbox" id="f-noemail"> Missing email</label>
+        </div>
       </div>
       <div class="area-note" id="area-note" hidden><span id="area-text"></span><span class="grow"></span><button type="button" id="area-clear">Clear area</button></div>
       <div class="hm-sel">
@@ -1099,9 +1104,12 @@ function filtered() {
   return hm.prospects.filter(p =>
     (!q || [p.name, p.address, p.city, p.category, p.email, p.notes].join(" ").toLowerCase().includes(q)) &&
     (!r || (p.dist != null && p.dist <= r)) && (!hm.statuses.size || hm.statuses.has(p.status)) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat) &&
+    (!$("f-hasemail").checked || !!p.email) && (!$("f-hasphone").checked || !!p.phone) && (!$("f-noemail").checked || !p.email) &&
     (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))));
 }
-["f-q", "f-radius", "f-city", "f-county", "f-cat"].forEach(id => $(id).addEventListener("input", renderHitmap));
+["f-q", "f-radius", "f-city", "f-county", "f-cat", "f-hasemail", "f-hasphone", "f-noemail"].forEach(id => $(id).addEventListener("input", renderHitmap));
+$("f-hasemail").addEventListener("change", e => { if (e.target.checked) $("f-noemail").checked = false; });
+$("f-noemail").addEventListener("change", e => { if (e.target.checked) $("f-hasemail").checked = false; });
 function updateSourceLine(shown) {
   const q = $("f-q").value.trim(); const box = $("f-source");
   if (!q || q.length < 3) { box.hidden = true; return; }
