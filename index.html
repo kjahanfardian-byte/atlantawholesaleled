@@ -990,7 +990,11 @@ async function openHitmap() {
   await loadProspects();
 }
 function initMap() {
-  hm.map = L.map("map", { zoomControl: true }).setView([HQ.lat, HQ.lng], 11);
+  hm.map = L.map("map", { zoomControl: true, scrollWheelZoom: "center", doubleClickZoom: "center", touchZoom: "center" }).setView([HQ.lat, HQ.lng], 11);
+  /* every zoom in or out is centered on the Tucker warehouse unless the panel is focusing a specific pin */
+  hm.map.on("zoomend", () => { if (!hm.programmatic) hm.map.panTo([HQ.lat, HQ.lng], { animate: false }); });
+  const Home = L.Control.extend({ onAdd() { const b = L.DomUtil.create("button", "leaflet-bar"); b.type = "button"; b.title = "Back to Tucker"; b.style.cssText = "width:34px;height:34px;background:#fff;border:0;cursor:pointer;font-size:16px;line-height:34px;text-align:center;color:#15202B"; b.textContent = "⌂"; L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); hm.map.setView([HQ.lat, HQ.lng], 11); }); return b; } });
+  new Home({ position: "topleft" }).addTo(hm.map);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(hm.map);
   L.marker([HQ.lat, HQ.lng], { icon: L.divIcon({ className: "", html: '<div class="pin hq"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 1000 }).addTo(hm.map).bindPopup(`<b>${HQ.name}</b><br>1810 Auger Dr, Ste A`);
   hm.layer = L.layerGroup().addTo(hm.map);
@@ -1069,7 +1073,7 @@ hm.mapClicks = document.getElementById("map").addEventListener("click", e => {
 });
 function focusProspect(id) {
   hm.active = id; const p = hm.prospects.find(x => x.id === id);
-  if (p && p.lat && p.lng) { hm.map.setView([p.lat, p.lng], Math.max(hm.map.getZoom(), 13)); const m = hm.markers[id]; if (m) m.openPopup(); }
+  if (p && p.lat && p.lng) { hm.programmatic = true; hm.map.setView([p.lat, p.lng], Math.max(hm.map.getZoom(), 13)); setTimeout(() => { hm.programmatic = false; }, 600); const m = hm.markers[id]; if (m) m.openPopup(); }
   openDetail(id);
   document.querySelectorAll(".pr").forEach(r => r.classList.toggle("active", r.dataset.id === id));
 }
@@ -1252,7 +1256,7 @@ $("threads").addEventListener("click", e => { const row = e.target.closest(".th"
 async function openThread(t) {
   const unread = t.msgs.filter(m => m.direction === "in" && !m.is_read).map(m => m.id);
   if (unread.length) { try { await api("mark_read", { ids: unread }); t.msgs.forEach(m => { if (unread.includes(m.id)) m.is_read = true; }); } catch (e) {} }
-  if (t.p && t.p.lat && t.p.lng) { hm.map.setView([t.p.lat, t.p.lng], Math.max(hm.map.getZoom(), 13)); const mk = hm.markers[t.p.id]; if (mk) mk.openPopup(); }
+  if (t.p && t.p.lat && t.p.lng) { hm.programmatic = true; hm.map.setView([t.p.lat, t.p.lng], Math.max(hm.map.getZoom(), 13)); setTimeout(() => { hm.programmatic = false; }, 600); const mk = hm.markers[t.p.id]; if (mk) mk.openPopup(); }
   renderThread(t); renderInbox();
 }
 function renderThread(t) {
