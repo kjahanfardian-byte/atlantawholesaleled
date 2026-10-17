@@ -232,6 +232,39 @@
   .send-log { font-size: 13.5px; margin-top: 10px; max-height: 220px; overflow: auto; border-top: 1px solid var(--line); padding-top: 8px; }
   .send-log .ok { color: #1B6B3F; } .send-log .bad { color: #B42318; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .leaflet-tile { filter: brightness(.85) contrast(1.05); } }
+  .hm-tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .hm-tabs button { flex: 1; padding: 10px; background: none; border: 0; border-bottom: 3px solid transparent; font-weight: 700; font-size: 14px; cursor: pointer; color: var(--ink-2); }
+  .hm-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .hm-tabs .badge { display: inline-block; min-width: 18px; padding: 1px 6px; border-radius: 999px; background: #B42318; color: #fff; font-size: 11px; margin-left: 6px; }
+  .hm-inbox { display: none; flex-direction: column; min-height: 0; flex: 1; }
+  .hm-side.inbox .hm-inbox { display: flex; }
+  .hm-side.inbox .hm-filters, .hm-side.inbox .hm-sel, .hm-side.inbox .hm-list { display: none; }
+  .hm-inbox .tools { display: flex; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .hm-inbox .tools select, .hm-inbox .tools input { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); color: var(--ink); font-size: 14px; }
+  .threads { overflow: auto; flex: 1; }
+  .th { display: grid; grid-template-columns: 10px 1fr auto; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); cursor: pointer; align-items: start; }
+  .th:hover, .th.active { background: var(--paper-2); }
+  .th .dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; background: transparent; }
+  .th.unread .dot { background: #B42318; }
+  .th .nm { font-weight: 700; font-size: 14.5px; }
+  .th.unread .nm { font-weight: 800; }
+  .th .sub { font-size: 13px; color: var(--ink-2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .th .snip { font-size: 12.5px; color: var(--mute); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .th .when { font-size: 11.5px; color: var(--mute); text-align: right; white-space: nowrap; }
+  .pill.sent, .pill.delayed { background: var(--paper-2); }
+  .pill.delivered { background: #DFF3E7; color: #1B6B3F; border-color: #BFE5CE; }
+  .pill.opened, .pill.clicked { background: #DCE9FF; color: #1D4F9C; border-color: #BBD3FA; }
+  .pill.bounced, .pill.complained, .pill.failed { background: #FDE2E1; color: #B42318; border-color: #F7C2BF; }
+  .pill.received { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .thread-view { width: min(620px, calc(100% - 24px)); }
+  .msg { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin: 10px 0; background: var(--paper-2); }
+  .msg.in { background: var(--paper); border-left: 4px solid var(--accent); }
+  .msg.out { border-left: 4px solid var(--ink); }
+  .msg .hd { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--mute); flex-wrap: wrap; }
+  .msg .hd b { color: var(--ink); }
+  .msg .bd { white-space: pre-wrap; font-size: 14px; margin-top: 8px; line-height: 1.45; max-height: 320px; overflow: auto; }
+  .msg .bd.html iframe { width: 100%; height: 320px; border: 0; background: #fff; border-radius: 6px; }
+  .reply-box textarea { min-height: 120px; }
 
   /* Pricing / how it works */
   .pricing { border-top: 1px solid var(--line); background: var(--paper); padding: clamp(48px, 6vw, 96px) 0; }
@@ -434,7 +467,18 @@
     <button class="btn dark" type="button" id="hm-logout">Log out</button>
   </div>
   <div class="hm-body">
-    <aside class="hm-side">
+    <aside class="hm-side" id="hm-side">
+      <div class="hm-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected="true" data-tab="prospects">Prospects</button>
+        <button type="button" role="tab" aria-selected="false" data-tab="inbox">Inbox<span class="badge" id="unread-badge" hidden>0</span></button>
+      </div>
+      <div class="hm-inbox" id="hm-inbox">
+        <div class="tools">
+          <select id="ib-filter"><option value="">All mail</option><option value="in">Replies received</option><option value="out">Sent</option><option value="unread">Unread</option><option value="bounced">Bounced</option><option value="unmatched">Not linked to a prospect</option></select>
+          <input id="ib-q" type="search" placeholder="Search">
+        </div>
+        <div class="threads" id="threads"></div>
+      </div>
       <div class="hm-filters">
         <input class="full" id="f-q" type="search" placeholder="Search name, address, category">
         <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option></select>
@@ -484,6 +528,7 @@
     <div class="field"><label for="s-att-url">Attachment URL (PDF)</label><input id="s-att-url"></div>
     <div class="field"><label for="s-att-name">Attachment file name</label><input id="s-att-name"></div>
     <div class="field"><label for="s-key">Resend API key</label><input id="s-key" type="password" placeholder="re_…"><span class="note" id="s-key-note"></span></div>
+    <div class="field"><label for="s-whsec">Resend webhook signing secret</label><input id="s-whsec" type="password" placeholder="whsec_…"><span class="note" id="s-whsec-note">Lets the inbox show delivered, opened and bounced. Webhook URL: https://byqzgilixiyvcxcszjrv.supabase.co/functions/v1/awl-api</span></div>
     <div class="actions"><button class="btn ghost" type="button" data-close="m-settings">Cancel</button><button class="btn primary" type="button" id="s-save">Save</button></div>
   </div>
 </div>
@@ -957,6 +1002,7 @@ async function loadProspects() {
     hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null }));
     hm.template = d.template; hm.loaded = true;
     fillFilters(); renderHitmap();
+    api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
   } catch (e) { $("hm-stats").textContent = e.message; }
 }
 function fillFilters() {
@@ -1044,6 +1090,7 @@ function openDetail(id) {
     <div class="f"><label>Category</label><input id="d-cat" value="${esc(p.category || "")}" list="cat-list"></div>
     <div class="f"><label>Address</label><input id="d-addr" value="${esc([p.address, p.city, p.zip].filter(Boolean).join(", "))}" disabled></div>
     <div class="f"><label>Notes</label><textarea id="d-notes" rows="3">${esc(p.notes || "")}</textarea></div>
+    ${(() => { const ms = hm.messages.filter(m => m.prospect_id === id); if (!ms.length) return ""; const outs = ms.filter(m => m.direction === "out"), ins = ms.filter(m => m.direction === "in"); return `<div class="f"><label>Email activity</label><div style="font-size:13.5px">${outs.length} sent${outs.length ? " (latest: " + outs[0].status + ")" : ""}, ${ins.length} repl${ins.length === 1 ? "y" : "ies"} · <button class="link" type="button" id="d-thread" style="background:none;border:0;color:var(--ink);text-decoration:underline;cursor:pointer;padding:0;font-size:13.5px">Open thread</button></div></div>`; })()}
     <div class="actions">
       <button class="btn primary" type="button" id="d-save" style="padding:8px 14px;font-size:14px">Save</button>
       <button class="btn ghost" type="button" id="d-send" style="padding:8px 14px;font-size:14px">Email this one</button>
@@ -1056,6 +1103,7 @@ function openDetail(id) {
     try { const r = await api("update", { id, fields }); Object.assign(p, r.prospect, { dist: p.dist }); fillFilters(); renderHitmap(); openDetail(id); } catch (e) { alert(e.message); }
   });
   $("d-send").addEventListener("click", () => { hm.selected = new Set([id]); updateSel(); openComposer(); });
+  const dt = $("d-thread"); if (dt) dt.addEventListener("click", () => { document.querySelector('.hm-tabs button[data-tab="inbox"]').click(); hm.thread = id; const t = buildThreads().find(x => x.key === id); if (t) openThread(t); });
 }
 
 /* ---- bulk actions ---- */
@@ -1102,11 +1150,13 @@ $("c-send").addEventListener("click", async () => {
 $("hm-settings").addEventListener("click", () => {
   const t = hm.template; $("s-from").value = t.from || ""; $("s-reply").value = t.reply_to || ""; $("s-att-url").value = t.attachment_url || ""; $("s-att-name").value = t.attachment_name || ""; $("s-key").value = "";
   $("s-key-note").textContent = t.has_resend_key ? "A key is saved. Leave blank to keep it." : "No key saved yet. Create one at resend.com (free) and paste it here.";
+  $("s-whsec").value = ""; $("s-whsec").placeholder = t.has_webhook_secret ? "Saved. Leave blank to keep it." : "whsec_…";
   $("s-err").textContent = ""; openModal("m-settings");
 });
 $("s-save").addEventListener("click", async () => {
   const values = { from_email: $("s-from").value.trim(), reply_to: $("s-reply").value.trim(), attachment_url: $("s-att-url").value.trim(), attachment_name: $("s-att-name").value.trim() };
   if ($("s-key").value.trim()) values.resend_api_key = $("s-key").value.trim();
+  if ($("s-whsec").value.trim()) values.resend_webhook_secret = $("s-whsec").value.trim();
   try { await api("save_template", { values }); Object.assign(hm.template, { from: values.from_email, reply_to: values.reply_to, attachment_url: values.attachment_url, attachment_name: values.attachment_name }); if (values.resend_api_key) hm.template.has_resend_key = true; closeModal("m-settings"); } catch (e) { $("s-err").textContent = e.message; }
 });
 
@@ -1149,6 +1199,108 @@ $("i-go").addEventListener("click", async () => {
   $("i-go").disabled = true; $("i-err").textContent = "Importing… this can take a minute when addresses need placing.";
   try { const r = await api("import", { rows: importRows }); $("i-err").textContent = `Imported ${r.inserted} new prospect(s).`; await loadProspects(); setTimeout(() => closeModal("m-import"), 1200); } catch (e) { $("i-err").textContent = e.message; $("i-go").disabled = false; }
 });
+
+
+/* ---- inbox / CRM ---- */
+hm.messages = []; hm.thread = null;
+document.querySelectorAll(".hm-tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".hm-tabs button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+  $("hm-side").classList.toggle("inbox", b.dataset.tab === "inbox");
+  if (b.dataset.tab === "inbox") loadInbox();
+}));
+["ib-filter", "ib-q"].forEach(id => $(id).addEventListener("input", renderInbox));
+async function loadInbox() {
+  try { const d = await api("threads"); hm.messages = d.messages; renderInbox(); } catch (e) { $("threads").innerHTML = `<div class="empty" style="border:0">${esc(e.message)}</div>`; }
+}
+function updateUnread() {
+  const n = hm.messages.filter(m => m.direction === "in" && !m.is_read).length;
+  const b = $("unread-badge"); b.hidden = n === 0; b.textContent = n;
+}
+function threadKey(m) { return m.prospect_id || ("email:" + (m.direction === "in" ? m.from_email : m.to_email)); }
+function buildThreads() {
+  const map = new Map();
+  hm.messages.forEach(m => { const k = threadKey(m); if (!map.has(k)) map.set(k, []); map.get(k).push(m); });
+  return [...map.entries()].map(([key, msgs]) => {
+    msgs.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const last = msgs[msgs.length - 1]; const p = hm.prospects.find(x => x.id === last.prospect_id);
+    const lastOut = [...msgs].reverse().find(m => m.direction === "out"), lastIn = [...msgs].reverse().find(m => m.direction === "in");
+    return { key, msgs, last, p, name: p ? p.name : (lastIn ? lastIn.from_email : last.to_email), unread: msgs.some(m => m.direction === "in" && !m.is_read), lastOut, lastIn, matched: !!p };
+  }).sort((a, b) => new Date(b.last.created_at) - new Date(a.last.created_at));
+}
+function ago(d) { const s = (Date.now() - new Date(d)) / 1000; if (s < 3600) return Math.max(1, Math.round(s / 60)) + "m"; if (s < 86400) return Math.round(s / 3600) + "h"; if (s < 7 * 86400) return Math.round(s / 86400) + "d"; return new Date(d).toLocaleDateString(); }
+function renderInbox() {
+  updateUnread();
+  const f = $("ib-filter").value, q = $("ib-q").value.trim().toLowerCase();
+  let threads = buildThreads();
+  if (f === "in") threads = threads.filter(t => t.lastIn);
+  if (f === "out") threads = threads.filter(t => t.lastOut && !t.lastIn);
+  if (f === "unread") threads = threads.filter(t => t.unread);
+  if (f === "bounced") threads = threads.filter(t => t.msgs.some(m => m.status === "bounced" || m.status === "complained"));
+  if (f === "unmatched") threads = threads.filter(t => !t.matched);
+  if (q) threads = threads.filter(t => [t.name, t.last.subject, t.last.text_body, t.last.from_email, t.last.to_email].join(" ").toLowerCase().includes(q));
+  $("threads").innerHTML = threads.map(t => `
+    <div class="th${t.unread ? " unread" : ""}${hm.thread === t.key ? " active" : ""}" data-key="${esc(t.key)}">
+      <span class="dot"></span>
+      <div><div class="nm">${esc(t.name)}${t.matched ? "" : ' <span class="pill">not linked</span>'}</div>
+        <div class="sub">${esc(t.last.subject || "")}</div>
+        <div class="snip">${t.last.direction === "in" ? "Reply: " : "You: "}${esc((t.last.text_body || "").slice(0, 90))}</div></div>
+      <div class="when">${ago(t.last.created_at)}<br><span class="pill ${t.last.direction === "in" ? "received" : t.last.status}">${t.last.direction === "in" ? "replied" : t.last.status}</span></div>
+    </div>`).join("") || `<div class="empty" style="border:0">${hm.messages.length ? "Nothing matches." : "No email activity yet. Sent emails and replies to patrick@atlantawholesaleled.com will show up here."}</div>`;
+  if (hm.thread) { const t = threads.find(x => x.key === hm.thread) || buildThreads().find(x => x.key === hm.thread); if (t) renderThread(t); }
+}
+$("threads").addEventListener("click", e => { const row = e.target.closest(".th"); if (!row) return; hm.thread = row.dataset.key; const t = buildThreads().find(x => x.key === hm.thread); if (t) openThread(t); });
+async function openThread(t) {
+  const unread = t.msgs.filter(m => m.direction === "in" && !m.is_read).map(m => m.id);
+  if (unread.length) { try { await api("mark_read", { ids: unread }); t.msgs.forEach(m => { if (unread.includes(m.id)) m.is_read = true; }); } catch (e) {} }
+  if (t.p && t.p.lat && t.p.lng) { hm.map.setView([t.p.lat, t.p.lng], Math.max(hm.map.getZoom(), 13)); const mk = hm.markers[t.p.id]; if (mk) mk.openPopup(); }
+  renderThread(t); renderInbox();
+}
+function renderThread(t) {
+  const d = $("hm-detail"); d.classList.add("open", "thread-view");
+  const lastIn = t.lastIn;
+  const replySubject = t.last.subject ? (/^re:/i.test(t.last.subject) ? t.last.subject : "Re: " + t.last.subject) : "";
+  d.innerHTML = `
+    <button class="close btn ghost" type="button" style="padding:4px 10px" id="t-close">×</button>
+    <h4>${esc(t.name)}</h4>
+    <div style="font-size:13px;color:var(--mute);margin-bottom:6px">${t.p ? esc([t.p.category, t.p.city].filter(Boolean).join(" · ")) + (t.p.email ? " · " + esc(t.p.email) : "") : esc(t.last.from_email || t.last.to_email || "")}</div>
+    <div class="actions" style="margin:0 0 6px">
+      ${t.p ? `<button class="btn ghost" type="button" style="padding:6px 12px;font-size:13px" id="t-open-prospect">Prospect details</button>
+      <select id="t-status" style="padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px">${STATUSES.map(s => `<option ${t.p.status === s ? "selected" : ""}>${s}</option>`).join("")}</select>` :
+      `<select id="t-link" style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px"><option value="">Link this email to a prospect…</option>${hm.prospects.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</select>`}
+    </div>
+    <div id="t-msgs">${t.msgs.map(m => `
+      <div class="msg ${m.direction}" data-mid="${m.id}">
+        <div class="hd"><span><b>${m.direction === "in" ? "From " + esc(m.from_email) : "To " + esc(m.to_email)}</b> · ${new Date(m.created_at).toLocaleString()}</span><span class="pill ${m.direction === "in" ? "received" : m.status}">${m.direction === "in" ? "reply" : m.status}${m.status_at && m.direction === "out" ? " " + ago(m.status_at) : ""}</span></div>
+        <div style="font-weight:600;font-size:13.5px;margin-top:6px">${esc(m.subject || "")}</div>
+        <div class="bd">${esc(m.text_body || "")}</div>
+      </div>`).join("")}</div>
+    <div class="reply-box">
+      <div class="f"><label>Reply subject</label><input id="r-subject" value="${esc(replySubject)}"></div>
+      <div class="f"><label>Reply</label><textarea id="r-body" placeholder="Write a reply… it goes out as patrick@atlantawholesaleled.com and lands in this thread."></textarea></div>
+      <p class="err" id="r-err" style="font-size:13px"></p>
+      <div class="actions"><button class="btn primary" type="button" id="r-send" style="padding:8px 14px;font-size:14px" ${t.p || t.lastIn ? "" : "disabled"}>Send reply</button></div>
+    </div>`;
+  $("t-close").addEventListener("click", () => { d.classList.remove("open", "thread-view"); hm.thread = null; renderInbox(); });
+  if (t.p) {
+    $("t-open-prospect").addEventListener("click", () => { d.classList.remove("thread-view"); openDetail(t.p.id); });
+    $("t-status").addEventListener("change", async e => { try { await api("update", { id: t.p.id, fields: { status: e.target.value } }); t.p.status = e.target.value; renderHitmap(); } catch (err) { alert(err.message); } });
+  } else {
+    $("t-link").addEventListener("change", async e => {
+      const pid = e.target.value; if (!pid) return;
+      try { await api("link_messages", { ids: t.msgs.map(m => m.id), prospect_id: pid }); const p = hm.prospects.find(x => x.id === pid); const from = t.lastIn && t.lastIn.from_email; if (p && from && !p.email) { await api("update", { id: pid, fields: { email: from } }); p.email = from; } hm.messages.forEach(m => { if (t.msgs.some(x => x.id === m.id)) m.prospect_id = pid; }); hm.thread = pid; renderHitmap(); renderInbox(); } catch (err) { alert(err.message); }
+    });
+  }
+  $("r-send").addEventListener("click", async () => {
+    const btn = $("r-send"); btn.disabled = true; $("r-err").textContent = "";
+    try {
+      const r = await api("reply", { prospect_id: t.p ? t.p.id : null, to: t.p && t.p.email ? t.p.email : (lastIn ? lastIn.from_email : null), subject: $("r-subject").value, body: $("r-body").value, in_reply_to: lastIn ? lastIn.message_id : null });
+      hm.messages.unshift(r.message); renderInbox();
+    } catch (e) { $("r-err").textContent = e.message; }
+    btn.disabled = false;
+  });
+}
+/* refresh the inbox in the background while the panel is open */
+setInterval(() => { if (document.body.classList.contains("admin") && session) { api("threads").then(d => { const had = hm.messages.length; hm.messages = d.messages; if (hm.messages.length !== had || $("hm-side").classList.contains("inbox")) renderInbox(); else updateUnread(); }).catch(() => {}); } }, 60000);
 
 /* Pricing request: builds a mailto so it works with no backend */
 document.getElementById("send").addEventListener("click", () => {
