@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,300..900;1,62..125,300..900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root {
     color-scheme: light;
@@ -87,7 +88,7 @@
   .nav a:hover { background: var(--paper-2); color: var(--ink); }
   .nav a.cta { background: var(--ink); color: var(--paper); font-weight: 600; margin-left: 4px; }
   .nav a.cta:hover { background: var(--ink-2); }
-  @media (max-width: 640px) { .nav a:not(.cta) { display: none; } }
+  @media (max-width: 640px) { .nav a:not(.cta):not(.login) { display: none; } }
 
   /* Hero */
   .hero { padding: clamp(40px, 7vw, 96px) 0 clamp(32px, 5vw, 64px); }
@@ -165,6 +166,72 @@
   .buildbar .btn.primary:disabled { opacity: .5; cursor: not-allowed; }
   .buildbar .status { font-size: 13.5px; opacity: .8; width: 100%; }
   body.selecting { padding-bottom: 90px; }
+  /* Leaflet (inlined) */
+  .leaflet-pane, .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow, .leaflet-tile-container, .leaflet-pane > svg, .leaflet-pane > canvas, .leaflet-zoom-box, .leaflet-image-layer, .leaflet-layer { position: absolute; left: 0; top: 0; } .leaflet-container { overflow: hidden; } .leaflet-tile, .leaflet-marker-icon, .leaflet-marker-shadow { -webkit-user-select: none; -moz-user-select: none; user-select: none; -webkit-user-drag: none; } .leaflet-tile::selection { background: transparent; } .leaflet-safari .leaflet-tile { image-rendering: -webkit-optimize-contrast; } .leaflet-safari .leaflet-tile-container { width: 1600px; height: 1600px; -webkit-transform-origin: 0 0; } .leaflet-marker-icon, .leaflet-marker-shadow { display: block; } .leaflet-container .leaflet-overlay-pane svg { max-width: none !important; max-height: none !important; } .leaflet-container .leaflet-marker-pane img, .leaflet-container .leaflet-shadow-pane img, .leaflet-container .leaflet-tile-pane img, .leaflet-container img.leaflet-image-layer, .leaflet-container .leaflet-tile { max-width: none !important; max-height: none !important; width: auto; padding: 0; } .leaflet-container img.leaflet-tile { mix-blend-mode: plus-lighter; } .leaflet-container.leaflet-touch-zoom { -ms-touch-action: pan-x pan-y; touch-action: pan-x pan-y; } .leaflet-container.leaflet-touch-drag { -ms-touch-action: pinch-zoom; touch-action: none; touch-action: pinch-zoom; } .leaflet-container.leaflet-touch-drag.leaflet-touch-zoom { -ms-touch-action: none; touch-action: none; } .leaflet-container { -webkit-tap-highlight-color: transparent; } .leaflet-container a { -webkit-tap-highlight-color: rgba(51, 181, 229, 0.4); } .leaflet-tile { filter: inherit; visibility: hidden; } .leaflet-tile-loaded { visibility: inherit; } .leaflet-zoom-box { width: 0; height: 0; -moz-box-sizing: border-box; box-sizing: border-box; z-index: 800; } .leaflet-overlay-pane svg { -moz-user-select: none; } .leaflet-pane { z-index: 400; } .leaflet-tile-pane { z-index: 200; } .leaflet-overlay-pane { z-index: 400; } .leaflet-shadow-pane { z-index: 500; } .leaflet-marker-pane { z-index: 600; } .leaflet-tooltip-pane { z-index: 650; } .leaflet-popup-pane { z-index: 700; } .leaflet-map-pane canvas { z-index: 100; } .leaflet-map-pane svg { z-index: 200; } .leaflet-vml-shape { width: 1px; height: 1px; } .lvml { behavior: url(#default#VML); display: inline-block; position: absolute; } .leaflet-control { position: relative; z-index: 800; pointer-events: visiblePainted; pointer-events: auto; } .leaflet-top, .leaflet-bottom { position: absolute; z-index: 1000; pointer-events: none; } .leaflet-top { top: 0; } .leaflet-right { right: 0; } .leaflet-bottom { bottom: 0; } .leaflet-left { left: 0; } .leaflet-control { float: left; clear: both; } .leaflet-right .leaflet-control { float: right; } .leaflet-top .leaflet-control { margin-top: 10px; } .leaflet-bottom .leaflet-control { margin-bottom: 10px; } .leaflet-left .leaflet-control { margin-left: 10px; } .leaflet-right .leaflet-control { margin-right: 10px; } .leaflet-fade-anim .leaflet-popup { opacity: 0; -webkit-transition: opacity 0.2s linear; -moz-transition: opacity 0.2s linear; transition: opacity 0.2s linear; } .leaflet-fade-anim .leaflet-map-pane .leaflet-popup { opacity: 1; } .leaflet-zoom-animated { -webkit-transform-origin: 0 0; -ms-transform-origin: 0 0; transform-origin: 0 0; } svg.leaflet-zoom-animated { will-change: transform; } .leaflet-zoom-anim .leaflet-zoom-animated { -webkit-transition: -webkit-transform 0.25s cubic-bezier(0,0,0.25,1); -moz-transition: -moz-transform 0.25s cubic-bezier(0,0,0.25,1); transition: transform 0.25s cubic-bezier(0,0,0.25,1); } .leaflet-zoom-anim .leaflet-tile, .leaflet-pan-anim .leaflet-tile { -webkit-transition: none; -moz-transition: none; transition: none; } .leaflet-zoom-anim .leaflet-zoom-hide { visibility: hidden; } .leaflet-interactive { cursor: pointer; } .leaflet-grab { cursor: -webkit-grab; cursor: -moz-grab; cursor: grab; } .leaflet-crosshair, .leaflet-crosshair .leaflet-interactive { cursor: crosshair; } .leaflet-popup-pane, .leaflet-control { cursor: auto; } .leaflet-dragging .leaflet-grab, .leaflet-dragging .leaflet-grab .leaflet-interactive, .leaflet-dragging .leaflet-marker-draggable { cursor: move; cursor: -webkit-grabbing; cursor: -moz-grabbing; cursor: grabbing; } .leaflet-marker-icon, .leaflet-marker-shadow, .leaflet-image-layer, .leaflet-pane > svg path, .leaflet-tile-container { pointer-events: none; } .leaflet-marker-icon.leaflet-interactive, .leaflet-image-layer.leaflet-interactive, .leaflet-pane > svg path.leaflet-interactive, svg.leaflet-image-layer.leaflet-interactive path { pointer-events: visiblePainted; pointer-events: auto; } .leaflet-container { background: #ddd; outline-offset: 1px; } .leaflet-container a { color: #0078A8; } .leaflet-zoom-box { border: 2px dotted #38f; background: rgba(255,255,255,0.5); } .leaflet-container { font-family: "Helvetica Neue", Arial, Helvetica, sans-serif; font-size: 12px; font-size: 0.75rem; line-height: 1.5; } .leaflet-bar { box-shadow: 0 1px 5px rgba(0,0,0,0.65); border-radius: 4px; } .leaflet-bar a { background-color: #fff; border-bottom: 1px solid #ccc; width: 26px; height: 26px; line-height: 26px; display: block; text-align: center; text-decoration: none; color: black; } .leaflet-bar a, .leaflet-control-layers-toggle { background-position: 50% 50%; background-repeat: no-repeat; display: block; } .leaflet-bar a:hover, .leaflet-bar a:focus { background-color: #f4f4f4; } .leaflet-bar a:first-child { border-top-left-radius: 4px; border-top-right-radius: 4px; } .leaflet-bar a:last-child { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; border-bottom: none; } .leaflet-bar a.leaflet-disabled { cursor: default; background-color: #f4f4f4; color: #bbb; } .leaflet-touch .leaflet-bar a { width: 30px; height: 30px; line-height: 30px; } .leaflet-touch .leaflet-bar a:first-child { border-top-left-radius: 2px; border-top-right-radius: 2px; } .leaflet-touch .leaflet-bar a:last-child { border-bottom-left-radius: 2px; border-bottom-right-radius: 2px; } .leaflet-control-zoom-in, .leaflet-control-zoom-out { font: bold 18px 'Lucida Console', Monaco, monospace; text-indent: 1px; } .leaflet-touch .leaflet-control-zoom-in, .leaflet-touch .leaflet-control-zoom-out { font-size: 22px; } .leaflet-control-layers { box-shadow: 0 1px 5px rgba(0,0,0,0.4); background: #fff; border-radius: 5px; } .leaflet-control-layers-toggle { background-image: none; width: 36px; height: 36px; } .leaflet-retina .leaflet-control-layers-toggle { background-image: none; background-size: 26px 26px; } .leaflet-touch .leaflet-control-layers-toggle { width: 44px; height: 44px; } .leaflet-control-layers .leaflet-control-layers-list, .leaflet-control-layers-expanded .leaflet-control-layers-toggle { display: none; } .leaflet-control-layers-expanded .leaflet-control-layers-list { display: block; position: relative; } .leaflet-control-layers-expanded { padding: 6px 10px 6px 6px; color: #333; background: #fff; } .leaflet-control-layers-scrollbar { overflow-y: scroll; overflow-x: hidden; padding-right: 5px; } .leaflet-control-layers-selector { margin-top: 2px; position: relative; top: 1px; } .leaflet-control-layers label { display: block; font-size: 13px; font-size: 1.08333em; } .leaflet-control-layers-separator { height: 0; border-top: 1px solid #ddd; margin: 5px -10px 5px -6px; } .leaflet-default-icon-path { background-image: none; } .leaflet-container .leaflet-control-attribution { background: #fff; background: rgba(255, 255, 255, 0.8); margin: 0; } .leaflet-control-attribution, .leaflet-control-scale-line { padding: 0 5px; color: #333; line-height: 1.4; } .leaflet-control-attribution a { text-decoration: none; } .leaflet-control-attribution a:hover, .leaflet-control-attribution a:focus { text-decoration: underline; } .leaflet-attribution-flag { display: inline !important; vertical-align: baseline !important; width: 1em; height: 0.6669em; } .leaflet-left .leaflet-control-scale { margin-left: 5px; } .leaflet-bottom .leaflet-control-scale { margin-bottom: 5px; } .leaflet-control-scale-line { border: 2px solid #777; border-top: none; line-height: 1.1; padding: 2px 5px 1px; white-space: nowrap; -moz-box-sizing: border-box; box-sizing: border-box; background: rgba(255, 255, 255, 0.8); text-shadow: 1px 1px #fff; } .leaflet-control-scale-line:not(:first-child) { border-top: 2px solid #777; border-bottom: none; margin-top: -2px; } .leaflet-control-scale-line:not(:first-child):not(:last-child) { border-bottom: 2px solid #777; } .leaflet-touch .leaflet-control-attribution, .leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar { box-shadow: none; } .leaflet-touch .leaflet-control-layers, .leaflet-touch .leaflet-bar { border: 2px solid rgba(0,0,0,0.2); background-clip: padding-box; } .leaflet-popup { position: absolute; text-align: center; margin-bottom: 20px; } .leaflet-popup-content-wrapper { padding: 1px; text-align: left; border-radius: 12px; } .leaflet-popup-content { margin: 13px 24px 13px 20px; line-height: 1.3; font-size: 13px; font-size: 1.08333em; min-height: 1px; } .leaflet-popup-content p { margin: 17px 0; margin: 1.3em 0; } .leaflet-popup-tip-container { width: 40px; height: 20px; position: absolute; left: 50%; margin-top: -1px; margin-left: -20px; overflow: hidden; pointer-events: none; } .leaflet-popup-tip { width: 17px; height: 17px; padding: 1px; margin: -10px auto 0; pointer-events: auto; -webkit-transform: rotate(45deg); -moz-transform: rotate(45deg); -ms-transform: rotate(45deg); transform: rotate(45deg); } .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: white; color: #333; box-shadow: 0 3px 14px rgba(0,0,0,0.4); } .leaflet-container a.leaflet-popup-close-button { position: absolute; top: 0; right: 0; border: none; text-align: center; width: 24px; height: 24px; font: 16px/24px Tahoma, Verdana, sans-serif; color: #757575; text-decoration: none; background: transparent; } .leaflet-container a.leaflet-popup-close-button:hover, .leaflet-container a.leaflet-popup-close-button:focus { color: #585858; } .leaflet-popup-scrolled { overflow: auto; } .leaflet-oldie .leaflet-popup-content-wrapper { -ms-zoom: 1; } .leaflet-oldie .leaflet-popup-tip { width: 24px; margin: 0 auto; -ms-filter: "progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678)"; filter: progid:DXImageTransform.Microsoft.Matrix(M11=0.70710678, M12=0.70710678, M21=-0.70710678, M22=0.70710678); } .leaflet-oldie .leaflet-control-zoom, .leaflet-oldie .leaflet-control-layers, .leaflet-oldie .leaflet-popup-content-wrapper, .leaflet-oldie .leaflet-popup-tip { border: 1px solid #999; } .leaflet-div-icon { background: #fff; border: 1px solid #666; } .leaflet-tooltip { position: absolute; padding: 6px; background-color: #fff; border: 1px solid #fff; border-radius: 3px; color: #222; white-space: nowrap; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.4); } .leaflet-tooltip.leaflet-interactive { cursor: pointer; pointer-events: auto; } .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before, .leaflet-tooltip-left:before, .leaflet-tooltip-right:before { position: absolute; pointer-events: none; border: 6px solid transparent; background: transparent; content: ""; } .leaflet-tooltip-bottom { margin-top: 6px; } .leaflet-tooltip-top { margin-top: -6px; } .leaflet-tooltip-bottom:before, .leaflet-tooltip-top:before { left: 50%; margin-left: -6px; } .leaflet-tooltip-top:before { bottom: 0; margin-bottom: -12px; border-top-color: #fff; } .leaflet-tooltip-bottom:before { top: 0; margin-top: -12px; margin-left: -6px; border-bottom-color: #fff; } .leaflet-tooltip-left { margin-left: -6px; } .leaflet-tooltip-right { margin-left: 6px; } .leaflet-tooltip-left:before, .leaflet-tooltip-right:before { top: 50%; margin-top: -6px; } .leaflet-tooltip-left:before { right: 0; margin-right: -12px; border-left-color: #fff; } .leaflet-tooltip-right:before { left: 0; margin-left: -12px; border-right-color: #fff; } @media print { .leaflet-control { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  /* Admin: login + hit map */
+  .nav a.login { color: var(--mute); }
+  .modal { position: fixed; inset: 0; z-index: 90; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(21,32,43,.5); }
+  .modal.open { display: flex; }
+  .modal .box { background: var(--paper); color: var(--ink); border-radius: 12px; width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px; box-shadow: 0 20px 60px var(--drawer-shadow); }
+  .modal .box.wide { width: min(760px, 100%); }
+  .modal h3 { margin: 0 0 14px; font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+  .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 560px) { .modal .row { grid-template-columns: 1fr; } }
+  .modal .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; flex-wrap: wrap; }
+  .modal .err { color: #B42318; font-size: 14px; margin: 0 0 10px; min-height: 1em; }
+  .modal .note { color: var(--mute); font-size: 13.5px; margin: 0 0 12px; }
+  .hitmap { position: fixed; inset: 0; z-index: 70; background: var(--bg); color: var(--ink); display: none; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
+  body.admin .hitmap { display: flex; }
+  body.admin { overflow: hidden; }
+  .hm-top { display: flex; align-items: center; gap: 12px; padding: 10px clamp(12px, 2vw, 24px); background: var(--paper); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .hm-top h2 { margin: 0; font-size: 20px; font-weight: 800; font-variation-settings: "wdth" 110; letter-spacing: -.01em; }
+  .hm-top .stats { color: var(--mute); font-size: 14px; }
+  .hm-top .grow { flex: 1; }
+  .hm-top .btn { padding: 9px 14px; font-size: 14px; }
+  .hm-body { flex: 1; display: grid; grid-template-columns: 440px 1fr; min-height: 0; }
+  @media (max-width: 900px) { .hm-body { grid-template-columns: 1fr; grid-template-rows: 1fr 45vh; } }
+  .hm-side { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); background: var(--paper); }
+  .hm-filters { padding: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border-bottom: 1px solid var(--line); }
+  .hm-filters input, .hm-filters select { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); color: var(--ink); font-size: 14px; }
+  .hm-filters .full { grid-column: 1 / -1; }
+  .hm-sel { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 14px; flex-wrap: wrap; }
+  .hm-sel .link { background: none; border: 0; color: var(--ink-2); text-decoration: underline; cursor: pointer; padding: 0; font-size: 13.5px; }
+  .hm-sel .grow { flex: 1; }
+  .hm-list { overflow: auto; flex: 1; }
+  .pr { display: grid; grid-template-columns: 24px 1fr auto; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); align-items: start; cursor: pointer; }
+  .pr:hover { background: var(--paper-2); }
+  .pr.active { background: var(--paper-2); box-shadow: inset 3px 0 0 var(--accent); }
+  .pr input { margin-top: 3px; width: 16px; height: 16px; }
+  .pr .nm { font-weight: 700; font-size: 14.5px; line-height: 1.25; }
+  .pr .meta { color: var(--mute); font-size: 12.5px; margin-top: 2px; }
+  .pr .meta .noemail { color: #B42318; }
+  .pr .right { text-align: right; font-size: 12px; color: var(--mute); }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: var(--paper-2); color: var(--ink-2); border: 1px solid var(--line); }
+  .pill.new { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .pill.contacted { background: #DFF3E7; color: #1B6B3F; border-color: #BFE5CE; }
+  .pill.replied { background: #DCE9FF; color: #1D4F9C; border-color: #BBD3FA; }
+  .pill.customer { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .pill.skip { opacity: .6; }
+  .hm-map { position: relative; min-height: 0; }
+  #map { position: absolute; inset: 0; }
+  .pin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); display: grid; place-items: center; }
+  .pin.new { background: #F2B705; } .pin.contacted { background: #2F9E62; } .pin.replied { background: #2E6FD8; } .pin.customer { background: #15202B; } .pin.skip { background: #9AA3AD; }
+  .pin.hq { width: 20px; height: 20px; background: #15202B; border-color: #F2B705; border-width: 3px; }
+  .pin svg { width: 9px; height: 9px; stroke: #fff; stroke-width: 3; fill: none; }
+  .leaflet-popup-content { font-family: inherit; font-size: 13.5px; line-height: 1.4; }
+  .leaflet-popup-content b { font-size: 14.5px; }
+  .leaflet-popup-content .plink { display: inline-block; margin-top: 6px; margin-right: 8px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+  .hm-detail { position: absolute; right: 12px; top: 12px; width: min(380px, calc(100% - 24px)); max-height: calc(100% - 24px); overflow: auto; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 16px; z-index: 500; box-shadow: 0 12px 40px var(--drawer-shadow); display: none; }
+  .hm-detail.open { display: block; }
+  .hm-detail h4 { margin: 0 0 4px; font-size: 18px; font-weight: 800; }
+  .hm-detail .f { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; }
+  .hm-detail .f label { font-size: 12px; color: var(--mute); font-weight: 600; }
+  .hm-detail .f input, .hm-detail .f select, .hm-detail .f textarea { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); color: var(--ink); font-size: 14px; width: 100%; }
+  .hm-detail .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .hm-detail .close { position: absolute; top: 10px; right: 10px; }
+  .send-log { font-size: 13.5px; margin-top: 10px; max-height: 220px; overflow: auto; border-top: 1px solid var(--line); padding-top: 8px; }
+  .send-log .ok { color: #1B6B3F; } .send-log .bad { color: #B42318; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .leaflet-tile { filter: brightness(.85) contrast(1.05); } }
 
   /* Pricing / how it works */
   .pricing { border-top: 1px solid var(--line); background: var(--paper); padding: clamp(48px, 6vw, 96px) 0; }
@@ -240,6 +307,7 @@
       <a href="#catalog">Catalog</a>
       <a href="#pricing">Pricing</a>
       <a href="#contact">Contact</a>
+      <a href="#" class="login" id="nav-login">Log in</a>
       <a class="cta" href="#contact">Request pricing</a>
     </nav>
   </div>
@@ -343,6 +411,116 @@
     <span>Trade sales only. Pricing available on request.</span>
   </div>
 </footer>
+
+<div class="modal" id="m-login" role="dialog" aria-modal="true" aria-labelledby="m-login-h">
+  <div class="box">
+    <h3 id="m-login-h">Sign in</h3>
+    <p class="err" id="login-err"></p>
+    <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username"></div>
+    <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" autocomplete="current-password"></div>
+    <div class="actions"><button class="btn ghost" type="button" data-close="m-login">Cancel</button><button class="btn primary" type="button" id="l-go">Sign in</button></div>
+  </div>
+</div>
+
+<section class="hitmap" id="hitmap" aria-label="Hit map">
+  <div class="hm-top">
+    <h2>Hit map</h2>
+    <span class="stats" id="hm-stats"></span>
+    <span class="grow"></span>
+    <button class="btn ghost" type="button" id="hm-add">Add prospect</button>
+    <button class="btn ghost" type="button" id="hm-import">Import CSV</button>
+    <button class="btn ghost" type="button" id="hm-settings">Email settings</button>
+    <button class="btn ghost" type="button" id="hm-site">Back to site</button>
+    <button class="btn dark" type="button" id="hm-logout">Log out</button>
+  </div>
+  <div class="hm-body">
+    <aside class="hm-side">
+      <div class="hm-filters">
+        <input class="full" id="f-q" type="search" placeholder="Search name, address, category">
+        <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option></select>
+        <select id="f-status"><option value="">Any status</option><option value="new">New</option><option value="contacted">Contacted</option><option value="replied">Replied</option><option value="customer">Customer</option><option value="skip">Skipped</option></select>
+        <select id="f-city"><option value="">All cities</option></select>
+        <select id="f-county"><option value="">All counties</option></select>
+        <select class="full" id="f-cat"><option value="">All categories</option></select>
+      </div>
+      <div class="hm-sel">
+        <label><input type="checkbox" id="sel-all"> Select all shown</label>
+        <span id="sel-count">0 selected</span>
+        <span class="grow"></span>
+        <button class="btn primary" type="button" id="act-email" style="padding:7px 12px;font-size:13.5px" disabled>Send email</button>
+        <button class="link" type="button" id="act-contacted">Mark contacted</button>
+        <button class="link" type="button" id="act-skip">Skip</button>
+        <button class="link" type="button" id="act-delete">Delete</button>
+      </div>
+      <div class="hm-list" id="hm-list"></div>
+    </aside>
+    <div class="hm-map">
+      <div id="map"></div>
+      <div class="hm-detail" id="hm-detail"></div>
+    </div>
+  </div>
+</section>
+
+<div class="modal" id="m-compose" role="dialog" aria-modal="true">
+  <div class="box wide">
+    <h3>Send outreach email</h3>
+    <p class="note" id="c-to"></p>
+    <p class="err" id="c-err"></p>
+    <div class="field"><label for="c-subject">Subject</label><input id="c-subject"></div>
+    <div class="field"><label for="c-body">Message</label><textarea id="c-body" style="min-height:220px"></textarea></div>
+    <p class="note">Placeholders: {{business}}, {{city}}, {{category}}. Each recipient gets their own email.</p>
+    <label style="font-size:14px"><input type="checkbox" id="c-attach" checked> Attach the catalog PDF</label>
+    <div class="send-log" id="c-log" hidden></div>
+    <div class="actions"><button class="btn ghost" type="button" id="c-save">Save as template</button><button class="btn ghost" type="button" data-close="m-compose">Close</button><button class="btn primary" type="button" id="c-send">Send</button></div>
+  </div>
+</div>
+
+<div class="modal" id="m-settings" role="dialog" aria-modal="true">
+  <div class="box">
+    <h3>Email settings</h3>
+    <p class="err" id="s-err"></p>
+    <div class="field"><label for="s-from">From</label><input id="s-from" placeholder="Atlanta Wholesale LED <patrick@atlantawholesaleled.com>"></div>
+    <div class="field"><label for="s-reply">Reply to</label><input id="s-reply"></div>
+    <div class="field"><label for="s-att-url">Attachment URL (PDF)</label><input id="s-att-url"></div>
+    <div class="field"><label for="s-att-name">Attachment file name</label><input id="s-att-name"></div>
+    <div class="field"><label for="s-key">Resend API key</label><input id="s-key" type="password" placeholder="re_…"><span class="note" id="s-key-note"></span></div>
+    <div class="actions"><button class="btn ghost" type="button" data-close="m-settings">Cancel</button><button class="btn primary" type="button" id="s-save">Save</button></div>
+  </div>
+</div>
+
+<div class="modal" id="m-add" role="dialog" aria-modal="true">
+  <div class="box">
+    <h3>Add prospect</h3>
+    <p class="err" id="a-err"></p>
+    <div class="field"><label for="a-name">Business name</label><input id="a-name"></div>
+    <div class="row">
+      <div class="field"><label for="a-cat">Category</label><input id="a-cat" list="cat-list"><datalist id="cat-list"></datalist></div>
+      <div class="field"><label for="a-phone">Phone</label><input id="a-phone"></div>
+    </div>
+    <div class="field"><label for="a-addr">Street address</label><input id="a-addr"></div>
+    <div class="row">
+      <div class="field"><label for="a-city">City</label><input id="a-city"></div>
+      <div class="field"><label for="a-zip">ZIP</label><input id="a-zip"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label for="a-email">Email</label><input id="a-email" type="email"></div>
+      <div class="field"><label for="a-web">Website</label><input id="a-web"></div>
+    </div>
+    <p class="note">The pin is placed from the address automatically.</p>
+    <div class="actions"><button class="btn ghost" type="button" data-close="m-add">Cancel</button><button class="btn primary" type="button" id="a-save">Add</button></div>
+  </div>
+</div>
+
+<div class="modal" id="m-import" role="dialog" aria-modal="true">
+  <div class="box">
+    <h3>Import CSV</h3>
+    <p class="note">Columns it understands (any order, header row required): name, category, address, city, county, zip, phone, email, website, lat, lng. Rows without coordinates are placed from the address, up to 40 per import.</p>
+    <p class="err" id="i-err"></p>
+    <input type="file" id="i-file" accept=".csv,text/csv">
+    <p class="note" id="i-preview"></p>
+    <div class="actions"><button class="btn ghost" type="button" data-close="m-import">Cancel</button><button class="btn primary" type="button" id="i-go" disabled>Import</button></div>
+  </div>
+</div>
 
 <div class="buildbar" id="buildbar" aria-live="polite">
   <div class="inner">
@@ -717,6 +895,260 @@ async function buildPdf() {
   btn.disabled = false;
 }
 document.getElementById("b-build").addEventListener("click", () => buildPdf().catch(err => { bStatus.hidden = false; bStatus.textContent = "Couldn’t build the PDF: " + err.message; document.getElementById("b-build").disabled = false; }));
+
+/* ===== Admin: login + Hit map ===== */
+const API = "https://byqzgilixiyvcxcszjrv.supabase.co/functions/v1/awl-api";
+const HQ = { lat: 33.854, lng: -84.217, name: "Atlanta Wholesale LED, Tucker" };
+const STATUSES = ["new", "contacted", "replied", "customer", "skip"];
+const $ = id => document.getElementById(id);
+let session = null;
+try { session = JSON.parse(localStorage.getItem("awl_session") || "null"); } catch (e) {}
+
+async function api(action, payload = {}) {
+  const r = await fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, token: session && session.token, ...payload }) });
+  let d = {}; try { d = await r.json(); } catch (e) {}
+  if (!r.ok) { if (r.status === 401 && action !== "login") logout(); throw new Error(d.error || `Request failed (${r.status})`); }
+  return d;
+}
+function openModal(id) { $(id).classList.add("open"); const f = $(id).querySelector("input, textarea, select"); if (f) setTimeout(() => f.focus(), 50); }
+function closeModal(id) { $(id).classList.remove("open"); }
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeModal(b.dataset.close)));
+document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); }));
+
+const navLogin = $("nav-login");
+function refreshNav() { navLogin.textContent = session ? "Hit map" : "Log in"; }
+refreshNav();
+navLogin.addEventListener("click", e => { e.preventDefault(); if (session) openHitmap(); else { $("login-err").textContent = ""; openModal("m-login"); } });
+$("l-go").addEventListener("click", login);
+$("l-pass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+async function login() {
+  $("login-err").textContent = ""; $("l-go").disabled = true;
+  try {
+    const d = await api("login", { email: $("l-email").value.trim(), password: $("l-pass").value });
+    session = { token: d.token, email: d.email }; localStorage.setItem("awl_session", JSON.stringify(session));
+    closeModal("m-login"); refreshNav(); openHitmap();
+  } catch (e) { $("login-err").textContent = e.message; }
+  $("l-go").disabled = false;
+}
+function logout() { session = null; localStorage.removeItem("awl_session"); refreshNav(); document.body.classList.remove("admin"); }
+$("hm-logout").addEventListener("click", logout);
+$("hm-site").addEventListener("click", () => document.body.classList.remove("admin"));
+
+/* ---- state ---- */
+const hm = { prospects: [], template: {}, selected: new Set(), map: null, markers: {}, circle: null, active: null, loaded: false };
+const miles = (a, b) => { const R = 3958.8, toR = d => d * Math.PI / 180; const dLat = toR(b.lat - a.lat), dLng = toR(b.lng - a.lng); const h = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+async function openHitmap() {
+  document.body.classList.add("admin");
+  if (!hm.map) initMap();
+  await loadProspects();
+}
+function initMap() {
+  hm.map = L.map("map", { zoomControl: true }).setView([HQ.lat, HQ.lng], 11);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(hm.map);
+  L.marker([HQ.lat, HQ.lng], { icon: L.divIcon({ className: "", html: '<div class="pin hq"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 1000 }).addTo(hm.map).bindPopup(`<b>${HQ.name}</b><br>1810 Auger Dr, Ste A`);
+  hm.layer = L.layerGroup().addTo(hm.map);
+  setTimeout(() => hm.map.invalidateSize(), 100);
+}
+async function loadProspects() {
+  try {
+    const d = await api("list");
+    hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null }));
+    hm.template = d.template; hm.loaded = true;
+    fillFilters(); renderHitmap();
+  } catch (e) { $("hm-stats").textContent = e.message; }
+}
+function fillFilters() {
+  const opts = (id, vals, label) => { const sel = $(id); const cur = sel.value; sel.innerHTML = `<option value="">${label}</option>` + vals.map(v => `<option>${esc(v)}</option>`).join(""); sel.value = cur; };
+  const uniq = k => [...new Set(hm.prospects.map(p => p[k]).filter(Boolean))].sort();
+  opts("f-city", uniq("city"), "All cities"); opts("f-county", uniq("county"), "All counties"); opts("f-cat", uniq("category"), "All categories");
+  $("cat-list").innerHTML = uniq("category").map(v => `<option value="${esc(v)}">`).join("");
+}
+function filtered() {
+  const q = $("f-q").value.trim().toLowerCase(), r = +$("f-radius").value || 0, st = $("f-status").value, city = $("f-city").value, county = $("f-county").value, cat = $("f-cat").value;
+  return hm.prospects.filter(p =>
+    (!q || [p.name, p.address, p.city, p.category, p.email, p.notes].join(" ").toLowerCase().includes(q)) &&
+    (!r || (p.dist != null && p.dist <= r)) && (!st || p.status === st) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat));
+}
+["f-q", "f-radius", "f-status", "f-city", "f-county", "f-cat"].forEach(id => $(id).addEventListener("input", renderHitmap));
+
+function renderHitmap() {
+  const list = filtered();
+  const total = hm.prospects.length, contacted = hm.prospects.filter(p => p.status === "contacted" || p.status === "replied" || p.status === "customer").length;
+  $("hm-stats").textContent = `${list.length} shown of ${total} · ${contacted} contacted · ${hm.prospects.filter(p => p.email).length} with email`;
+  // list
+  $("hm-list").innerHTML = list.map(p => `
+    <div class="pr${hm.active === p.id ? " active" : ""}" data-id="${p.id}">
+      <input type="checkbox" ${hm.selected.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}">
+      <div><div class="nm">${esc(p.name)}</div>
+        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.phone ? " · " + esc(p.phone) : ""}<br>${p.email ? esc(p.email) : '<span class="noemail">no email yet</span>'}</div></div>
+      <div class="right"><span class="pill ${p.status}">${p.status}</span><br>${p.dist != null ? p.dist.toFixed(1) + " mi" : ""}</div>
+    </div>`).join("") || `<div class="empty" style="border:0">No prospects match these filters.</div>`;
+  // markers
+  hm.layer.clearLayers(); hm.markers = {};
+  list.forEach(p => {
+    if (!p.lat || !p.lng) return;
+    const check = p.status === "contacted" || p.status === "replied" || p.status === "customer" ? '<svg viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3.5"/></svg>' : "";
+    const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: `<div class="pin ${p.status}">${check}</div>`, iconSize: [14, 14], iconAnchor: [7, 7] }) });
+    m.bindPopup(`<b>${esc(p.name)}</b><br>${esc(p.address || "")}${p.city ? ", " + esc(p.city) : ""}<br>${p.phone ? esc(p.phone) + "<br>" : ""}${p.email ? esc(p.email) + "<br>" : ""}<span class="pill ${p.status}">${p.status}</span><br><span class="plink" data-open="${p.id}">Details</span>${p.status !== "contacted" ? `<span class="plink" data-contacted="${p.id}">Mark contacted</span>` : ""}`);
+    m.on("click", () => { hm.active = p.id; });
+    m.addTo(hm.layer); hm.markers[p.id] = m;
+  });
+  // radius ring
+  const r = +$("f-radius").value || 0;
+  if (hm.circle) { hm.map.removeLayer(hm.circle); hm.circle = null; }
+  if (r) hm.circle = L.circle([HQ.lat, HQ.lng], { radius: r * 1609.34, color: "#F2B705", weight: 1.5, fillOpacity: .04 }).addTo(hm.map);
+  updateSel();
+}
+function updateSel() {
+  const shown = filtered();
+  shown.forEach(() => {});
+  const n = hm.selected.size;
+  $("sel-count").textContent = `${n} selected`;
+  $("act-email").disabled = n === 0;
+  $("sel-all").checked = shown.length > 0 && shown.every(p => hm.selected.has(p.id));
+}
+$("hm-list").addEventListener("click", e => {
+  const row = e.target.closest(".pr"); if (!row) return;
+  const id = row.dataset.id;
+  if (e.target.type === "checkbox") { e.target.checked ? hm.selected.add(id) : hm.selected.delete(id); updateSel(); return; }
+  focusProspect(id);
+});
+$("sel-all").addEventListener("change", e => { const shown = filtered(); shown.forEach(p => e.target.checked ? hm.selected.add(p.id) : hm.selected.delete(p.id)); renderHitmap(); });
+hm.mapClicks = document.getElementById("map").addEventListener("click", e => {
+  const t = e.target.closest("[data-open],[data-contacted]"); if (!t) return;
+  if (t.dataset.open) openDetail(t.dataset.open);
+  if (t.dataset.contacted) setStatus([t.dataset.contacted], "contacted");
+});
+function focusProspect(id) {
+  hm.active = id; const p = hm.prospects.find(x => x.id === id);
+  if (p && p.lat && p.lng) { hm.map.setView([p.lat, p.lng], Math.max(hm.map.getZoom(), 13)); const m = hm.markers[id]; if (m) m.openPopup(); }
+  openDetail(id);
+  document.querySelectorAll(".pr").forEach(r => r.classList.toggle("active", r.dataset.id === id));
+}
+
+/* ---- detail panel ---- */
+function openDetail(id) {
+  const p = hm.prospects.find(x => x.id === id); if (!p) return;
+  hm.active = id;
+  const d = $("hm-detail");
+  d.innerHTML = `
+    <button class="close btn ghost" type="button" style="padding:4px 10px" id="d-close">×</button>
+    <h4>${esc(p.name)}</h4>
+    <span class="pill ${p.status}">${p.status}</span>${p.contacted_at ? ` <span class="note" style="font-size:12px;color:var(--mute)">contacted ${new Date(p.contacted_at).toLocaleDateString()}</span>` : ""}
+    <div class="f"><label>Status</label><select id="d-status">${STATUSES.map(s => `<option ${p.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+    <div class="f"><label>Email</label><input id="d-email" value="${esc(p.email || "")}" placeholder="Add an email to include in sends"></div>
+    <div class="f"><label>Phone</label><input id="d-phone" value="${esc(p.phone || "")}"></div>
+    <div class="f"><label>Website</label><input id="d-web" value="${esc(p.website || "")}"></div>
+    <div class="f"><label>Category</label><input id="d-cat" value="${esc(p.category || "")}" list="cat-list"></div>
+    <div class="f"><label>Address</label><input id="d-addr" value="${esc([p.address, p.city, p.zip].filter(Boolean).join(", "))}" disabled></div>
+    <div class="f"><label>Notes</label><textarea id="d-notes" rows="3">${esc(p.notes || "")}</textarea></div>
+    <div class="actions">
+      <button class="btn primary" type="button" id="d-save" style="padding:8px 14px;font-size:14px">Save</button>
+      <button class="btn ghost" type="button" id="d-send" style="padding:8px 14px;font-size:14px">Email this one</button>
+      ${p.website ? `<a class="btn ghost" style="padding:8px 14px;font-size:14px" href="${esc(/^https?:/.test(p.website) ? p.website : "https://" + p.website)}" target="_blank" rel="noopener">Open site</a>` : ""}
+    </div>`;
+  d.classList.add("open");
+  $("d-close").addEventListener("click", () => d.classList.remove("open"));
+  $("d-save").addEventListener("click", async () => {
+    const fields = { status: $("d-status").value, email: $("d-email").value.trim() || null, phone: $("d-phone").value.trim() || null, website: $("d-web").value.trim() || null, category: $("d-cat").value.trim() || null, notes: $("d-notes").value.trim() || null };
+    try { const r = await api("update", { id, fields }); Object.assign(p, r.prospect, { dist: p.dist }); fillFilters(); renderHitmap(); openDetail(id); } catch (e) { alert(e.message); }
+  });
+  $("d-send").addEventListener("click", () => { hm.selected = new Set([id]); updateSel(); openComposer(); });
+}
+
+/* ---- bulk actions ---- */
+async function setStatus(ids, status) {
+  try { await api("bulk_status", { ids, status }); hm.prospects.forEach(p => { if (ids.includes(p.id)) { p.status = status; if (status === "contacted" && !p.contacted_at) p.contacted_at = new Date().toISOString(); } }); renderHitmap(); } catch (e) { alert(e.message); }
+}
+$("act-contacted").addEventListener("click", () => hm.selected.size && setStatus([...hm.selected], "contacted"));
+$("act-skip").addEventListener("click", () => hm.selected.size && setStatus([...hm.selected], "skip"));
+$("act-delete").addEventListener("click", async () => {
+  if (!hm.selected.size || !confirm(`Delete ${hm.selected.size} prospect(s)? This can’t be undone.`)) return;
+  try { await api("delete", { ids: [...hm.selected] }); hm.prospects = hm.prospects.filter(p => !hm.selected.has(p.id)); hm.selected.clear(); fillFilters(); renderHitmap(); } catch (e) { alert(e.message); }
+});
+
+/* ---- composer ---- */
+$("act-email").addEventListener("click", openComposer);
+function openComposer() {
+  const ids = [...hm.selected]; const rows = hm.prospects.filter(p => ids.includes(p.id));
+  const withEmail = rows.filter(p => p.email), without = rows.filter(p => !p.email);
+  $("c-to").textContent = `${withEmail.length} recipient${withEmail.length === 1 ? "" : "s"} with an email address` + (without.length ? `. ${without.length} selected prospect${without.length === 1 ? " has" : "s have"} no email and will be skipped: ${without.slice(0, 5).map(p => p.name).join(", ")}${without.length > 5 ? "…" : ""}` : ".");
+  $("c-subject").value = hm.template.subject || ""; $("c-body").value = hm.template.body || "";
+  $("c-err").textContent = hm.template.has_resend_key ? "" : "No Resend API key saved yet. Add it under Email settings before sending.";
+  $("c-log").hidden = true; $("c-log").innerHTML = "";
+  $("c-send").disabled = !withEmail.length;
+  openModal("m-compose");
+}
+$("c-save").addEventListener("click", async () => {
+  try { await api("save_template", { values: { email_subject: $("c-subject").value, email_body: $("c-body").value } }); hm.template.subject = $("c-subject").value; hm.template.body = $("c-body").value; $("c-err").textContent = "Template saved."; } catch (e) { $("c-err").textContent = e.message; }
+});
+$("c-send").addEventListener("click", async () => {
+  const ids = [...hm.selected].filter(id => (hm.prospects.find(p => p.id === id) || {}).email);
+  if (!ids.length) return;
+  if (!confirm(`Send to ${ids.length} recipient${ids.length === 1 ? "" : "s"} now?`)) return;
+  $("c-send").disabled = true; $("c-err").textContent = ""; $("c-log").hidden = false; $("c-log").innerHTML = "Sending…";
+  try {
+    const r = await api("send", { ids, subject: $("c-subject").value, body: $("c-body").value, attach: $("c-attach").checked });
+    $("c-log").innerHTML = r.results.map(x => `<div class="${x.ok ? "ok" : "bad"}">${x.ok ? "Sent" : "Failed"}: ${esc(x.name)}${x.error ? " — " + esc(x.error) : ""}</div>`).join("");
+    r.results.forEach(x => { const p = hm.prospects.find(q => q.id === x.id); if (p && x.ok) { p.status = "contacted"; p.contacted_at = p.contacted_at || new Date().toISOString(); p.last_sent_at = new Date().toISOString(); } });
+    hm.selected.clear(); renderHitmap();
+  } catch (e) { $("c-err").textContent = e.message; }
+  $("c-send").disabled = false;
+});
+
+/* ---- settings ---- */
+$("hm-settings").addEventListener("click", () => {
+  const t = hm.template; $("s-from").value = t.from || ""; $("s-reply").value = t.reply_to || ""; $("s-att-url").value = t.attachment_url || ""; $("s-att-name").value = t.attachment_name || ""; $("s-key").value = "";
+  $("s-key-note").textContent = t.has_resend_key ? "A key is saved. Leave blank to keep it." : "No key saved yet. Create one at resend.com (free) and paste it here.";
+  $("s-err").textContent = ""; openModal("m-settings");
+});
+$("s-save").addEventListener("click", async () => {
+  const values = { from_email: $("s-from").value.trim(), reply_to: $("s-reply").value.trim(), attachment_url: $("s-att-url").value.trim(), attachment_name: $("s-att-name").value.trim() };
+  if ($("s-key").value.trim()) values.resend_api_key = $("s-key").value.trim();
+  try { await api("save_template", { values }); Object.assign(hm.template, { from: values.from_email, reply_to: values.reply_to, attachment_url: values.attachment_url, attachment_name: values.attachment_name }); if (values.resend_api_key) hm.template.has_resend_key = true; closeModal("m-settings"); } catch (e) { $("s-err").textContent = e.message; }
+});
+
+/* ---- add ---- */
+$("hm-add").addEventListener("click", () => { ["a-name", "a-cat", "a-phone", "a-addr", "a-city", "a-zip", "a-email", "a-web"].forEach(id => $(id).value = ""); $("a-err").textContent = ""; openModal("m-add"); });
+$("a-save").addEventListener("click", async () => {
+  const prospect = { name: $("a-name").value.trim(), category: $("a-cat").value.trim() || null, phone: $("a-phone").value.trim() || null, address: $("a-addr").value.trim() || null, city: $("a-city").value.trim() || null, zip: $("a-zip").value.trim() || null, email: $("a-email").value.trim() || null, website: $("a-web").value.trim() || null };
+  if (!prospect.name) { $("a-err").textContent = "Name is required."; return; }
+  $("a-save").disabled = true;
+  try { const r = await api("add", { prospect }); const p = r.prospect; p.dist = (p.lat && p.lng) ? miles(HQ, p) : null; hm.prospects.unshift(p); fillFilters(); renderHitmap(); closeModal("m-add"); if (!p.lat) alert("Added, but the address couldn’t be placed on the map. Check the address and save again from Details."); } catch (e) { $("a-err").textContent = e.message; }
+  $("a-save").disabled = false;
+});
+
+/* ---- import ---- */
+let importRows = [];
+function parseCsv(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim()));
+}
+$("hm-import").addEventListener("click", () => { importRows = []; $("i-file").value = ""; $("i-preview").textContent = ""; $("i-err").textContent = ""; $("i-go").disabled = true; openModal("m-import"); });
+$("i-file").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rows = parseCsv(await f.text());
+  const head = rows.shift().map(h => h.trim().toLowerCase().replace(/[^a-z]/g, ""));
+  const map = { name: "name", business: "name", company: "name", category: "category", type: "category", address: "address", street: "address", city: "city", county: "county", zip: "zip", zipcode: "zip", phone: "phone", email: "email", website: "website", url: "website", lat: "lat", latitude: "lat", lng: "lng", lon: "lng", longitude: "lng" };
+  importRows = rows.map(r => { const o = {}; head.forEach((h, i) => { const k = map[h]; if (k && r[i] && r[i].trim()) o[k] = k === "lat" || k === "lng" ? parseFloat(r[i]) : r[i].trim(); }); return o; }).filter(o => o.name);
+  $("i-preview").textContent = importRows.length ? `${importRows.length} rows ready. ${importRows.filter(o => !o.lat).length} will be placed from their address.` : "No rows with a name column found.";
+  $("i-go").disabled = !importRows.length;
+});
+$("i-go").addEventListener("click", async () => {
+  $("i-go").disabled = true; $("i-err").textContent = "Importing… this can take a minute when addresses need placing.";
+  try { const r = await api("import", { rows: importRows }); $("i-err").textContent = `Imported ${r.inserted} new prospect(s).`; await loadProspects(); setTimeout(() => closeModal("m-import"), 1200); } catch (e) { $("i-err").textContent = e.message; $("i-go").disabled = false; }
+});
 
 /* Pricing request: builds a mailto so it works with no backend */
 document.getElementById("send").addEventListener("click", () => {
