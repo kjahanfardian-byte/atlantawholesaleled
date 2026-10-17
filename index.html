@@ -589,6 +589,7 @@
     <div class="field"><label for="s-att-name">Attachment file name</label><input id="s-att-name"></div>
     <div class="field"><label for="s-key">Resend API key</label><input id="s-key" type="password" placeholder="re_…"><span class="note" id="s-key-note"></span></div>
     <div class="field"><label for="s-gkey">Google Places API key</label><input id="s-gkey" type="password" placeholder="AIza…"><span class="note" id="s-gkey-note">Used by Find contacts to pull each business’s phone and website from Google.</span></div>
+    <div class="field"><label for="s-hunter">Hunter.io API key (optional)</label><input id="s-hunter" type="password" placeholder="Paste to find emails Google and the website don’t show"><span class="note">Free at hunter.io (25 lookups/month); used only when the website scan finds nothing.</span></div>
     <div class="field"><label for="s-whsec">Resend webhook signing secret</label><input id="s-whsec" type="password" placeholder="whsec_…"><span class="note" id="s-whsec-note">Lets the inbox show delivered, opened and bounced. Webhook URL: https://byqzgilixiyvcxcszjrv.supabase.co/functions/v1/awl-api</span></div>
     <div class="actions"><button class="btn ghost" type="button" data-close="m-settings">Cancel</button><button class="btn primary" type="button" id="s-save">Save</button></div>
   </div>
@@ -1151,7 +1152,7 @@ function renderHitmap() {
     <div class="pr${hm.active === p.id ? " active" : ""}" data-id="${p.id}">
       <input type="checkbox" ${hm.selected.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}">
       <div><div class="nm">${esc(p.name)}</div>
-        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.phone ? " · " + esc(p.phone) : ""}<br>${p.email ? esc(p.email) : '<span class="noemail">no email yet</span>'}</div></div>
+        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.phone ? " · " + esc(p.phone) : ""}<br>${p.email ? esc(p.email) + ((p.notes || "").match(/Email source: ([^\n]+)/) ? ` <span style="opacity:.7">(${esc((p.notes.match(/Email source: ([^\n]+)/) || [])[1])})</span>` : "") : (p.website ? '<span class="noemail">no email found on site</span>' : '<span class="noemail">no website, no email</span>')}</div></div>
       <div class="right"><span class="pill ${p.status}">${p.status}</span><br>${p.dist != null ? p.dist.toFixed(1) + " mi" : ""}</div>
     </div>`).join("") || `<div class="empty" style="border:0">No prospects match these filters.</div>`;
   // markers
@@ -1281,6 +1282,7 @@ $("hm-settings").addEventListener("click", () => {
   $("s-key-note").textContent = t.has_resend_key ? "A key is saved. Leave blank to keep it." : "No key saved yet. Create one at resend.com (free) and paste it here.";
   $("s-whsec").value = ""; $("s-whsec").placeholder = t.has_webhook_secret ? "Saved. Leave blank to keep it." : "whsec_…";
   $("s-gkey").value = ""; $("s-gkey").placeholder = t.has_places_key ? "Saved. Leave blank to keep it." : "AIza…";
+  $("s-hunter").value = ""; $("s-hunter").placeholder = t.has_hunter_key ? "Saved. Leave blank to keep it." : "Paste to find emails Google and the website don’t show";
   $("s-err").textContent = ""; openModal("m-settings");
 });
 $("s-save").addEventListener("click", async () => {
@@ -1288,6 +1290,7 @@ $("s-save").addEventListener("click", async () => {
   if ($("s-key").value.trim()) values.resend_api_key = $("s-key").value.trim();
   if ($("s-whsec").value.trim()) values.resend_webhook_secret = $("s-whsec").value.trim();
   if ($("s-gkey").value.trim()) { values.google_places_key = $("s-gkey").value.trim(); hm.template.has_places_key = true; }
+  if ($("s-hunter").value.trim()) { values.hunter_api_key = $("s-hunter").value.trim(); hm.template.has_hunter_key = true; }
   try { await api("save_template", { values }); Object.assign(hm.template, { from: values.from_email, reply_to: values.reply_to, attachment_url: values.attachment_url, attachment_name: values.attachment_name }); if (values.resend_api_key) hm.template.has_resend_key = true; closeModal("m-settings"); } catch (e) { $("s-err").textContent = e.message; }
 });
 
@@ -1437,6 +1440,7 @@ setInterval(() => { if (document.body.classList.contains("admin") && session) { 
 /* ---- find contacts (phone, website, email) ---- */
 $("hm-enrich").addEventListener("click", async () => {
   const pool = (hm.selected.size ? [...hm.selected] : filtered().map(p => p.id)).filter(id => { const p = hm.prospects.find(x => x.id === id); return p && (!p.email || !p.phone || !p.website); });
+  if (!hm.template.has_hunter_key && pool.length > 20 && !sessionStorage.getItem("hunter_hint")) { sessionStorage.setItem("hunter_hint", "1"); if (!confirm("Tip: websites often hide their email behind a form. Adding a free Hunter.io key under Email settings roughly doubles the emails found. Continue without it for now?")) return; }
   if (!pool.length) { alert("Everything shown already has an email, phone and website."); return; }
   if (!hm.template.has_places_key) { if (!confirm("No Google Places key is saved, so phones and websites can’t be pulled from Google; only prospects that already have a website will be scanned for an email. Continue anyway?")) return; }
   if (!confirm(`Look up contacts for ${pool.length} prospect${pool.length === 1 ? "" : "s"}? This runs in small batches and can take a few minutes.`)) return;
