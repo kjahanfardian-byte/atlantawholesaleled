@@ -265,6 +265,13 @@
   .msg .bd { white-space: pre-wrap; font-size: 14px; margin-top: 8px; line-height: 1.45; max-height: 320px; overflow: auto; }
   .msg .bd.html iframe { width: 100%; height: 320px; border: 0; background: #fff; border-radius: 6px; }
   .reply-box textarea { min-height: 120px; }
+  .stchips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .stchips .pill { cursor: pointer; opacity: .45; border-width: 1px; }
+  .stchips .pill[aria-pressed="true"] { opacity: 1; box-shadow: 0 0 0 2px var(--ink); }
+  .area-note { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 600; }
+  .area-note button { background: none; border: 0; text-decoration: underline; cursor: pointer; font: inherit; color: inherit; }
+  .map-draw .leaflet-container { cursor: crosshair; }
+  #map.drawing { cursor: crosshair; }
   .ctx { position: fixed; z-index: 95; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 40px var(--drawer-shadow); min-width: 190px; padding: 6px; display: none; }
   .ctx.open { display: block; }
   .ctx .hd { font-size: 12px; color: var(--mute); padding: 6px 10px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
@@ -466,7 +473,8 @@
     <h2>Hit map</h2>
     <span class="stats" id="hm-stats"></span>
     <span class="grow"></span>
-    <button class="btn primary" type="button" id="hm-enrich" style="padding:9px 14px;font-size:14px">Find contacts</button>
+    <button class="btn primary" type="button" id="hm-discover" style="padding:9px 14px;font-size:14px">Find businesses</button>
+    <button class="btn ghost" type="button" id="hm-enrich">Find contacts</button>
     <button class="btn ghost" type="button" id="hm-add">Add prospect</button>
     <button class="btn ghost" type="button" id="hm-import">Import CSV</button>
     <button class="btn ghost" type="button" id="hm-settings">Email settings</button>
@@ -489,11 +497,12 @@
       <div class="hm-filters">
         <input class="full" id="f-q" type="search" placeholder="Search name, address, category">
         <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option></select>
-        <select id="f-status"><option value="">Any status</option><option value="new">New</option><option value="contacted">Contacted</option><option value="replied">Replied</option><option value="customer">Customer</option><option value="skip">Skipped</option></select>
+        <div id="f-status" class="stchips" aria-label="Status filter"><button type="button" data-s="new" class="pill new" aria-pressed="false">new</button><button type="button" data-s="contacted" class="pill contacted" aria-pressed="false">contacted</button><button type="button" data-s="replied" class="pill replied" aria-pressed="false">replied</button><button type="button" data-s="customer" class="pill customer" aria-pressed="false">customer</button><button type="button" data-s="skip" class="pill skip" aria-pressed="false">skip</button></div>
         <select id="f-city"><option value="">All cities</option></select>
         <select id="f-county"><option value="">All counties</option></select>
         <select class="full" id="f-cat"><option value="">All categories</option></select>
       </div>
+      <div class="area-note" id="area-note" hidden><span id="area-text"></span><span class="grow"></span><button type="button" id="area-clear">Clear area</button></div>
       <div class="hm-sel">
         <label><input type="checkbox" id="sel-all"> Select all shown</label>
         <span id="sel-count">0 selected</span>
@@ -535,6 +544,24 @@
   <button type="button" data-act="contacted">Mark contacted</button>
   <button type="button" data-act="skip">Skip</button>
   <button type="button" data-act="delete" class="danger">Delete</button>
+</div>
+
+<div class="modal" id="m-discover" role="dialog" aria-modal="true">
+  <div class="box">
+    <h3>Find businesses</h3>
+    <p class="note">Pulls businesses from Google Maps into the map, with phone and website when Google has them. Duplicates are skipped.</p>
+    <p class="err" id="dv-err"></p>
+    <div class="field"><label for="dv-q">What to look for</label><input id="dv-q" placeholder="electrical contractors, sign shops, car dealerships, warehouses…" list="dv-ideas"><datalist id="dv-ideas"><option value="electrical contractors"><option value="sign companies"><option value="property management companies"><option value="car dealerships"><option value="warehouses"><option value="general contractors"><option value="auto body shops"><option value="gyms"><option value="churches"><option value="self storage"><option value="restaurants"><option value="gas stations"><option value="hotels"><option value="schools"><option value="medical offices"><option value="manufacturing companies"><option value="lighting stores"><option value="electrical supply"><option value="parking garages"><option value="shopping centers"></datalist></div>
+    <div class="row">
+      <div class="field"><label for="dv-cat">Save as category</label><input id="dv-cat" placeholder="Defaults to the search words"></div>
+      <div class="field"><label for="dv-pages">How many</label><select id="dv-pages"><option value="1">Up to 20</option><option value="3" selected>Up to 60</option><option value="5">Up to 100</option></select></div>
+    </div>
+    <div class="field"><label>Where</label>
+      <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-where" value="area" id="dv-where-area"> The area I drew on the map <span id="dv-area-hint" class="note"></span></label>
+      <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-where" value="radius" checked> Within <select id="dv-radius" style="padding:4px 8px"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="25">25</option><option value="40">40</option></select> miles of Tucker</label>
+    </div>
+    <div class="actions"><button class="btn ghost" type="button" data-close="m-discover">Cancel</button><button class="btn primary" type="button" id="dv-go">Search and add</button></div>
+  </div>
 </div>
 
 <div class="modal" id="m-pdf" role="dialog" aria-modal="true" aria-label="Attachment preview">
@@ -1021,6 +1048,19 @@ function initMap() {
   hm.map.on("zoomend", () => { if (!hm.programmatic) hm.map.panTo([HQ.lat, HQ.lng], { animate: false }); });
   const Home = L.Control.extend({ onAdd() { const b = L.DomUtil.create("button", "leaflet-bar"); b.type = "button"; b.title = "Back to Tucker"; b.style.cssText = "width:34px;height:34px;background:#fff;border:0;cursor:pointer;font-size:16px;line-height:34px;text-align:center;color:#15202B"; b.textContent = "⌂"; L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); hm.map.setView([HQ.lat, HQ.lng], 11); }); return b; } });
   new Home({ position: "topleft" }).addTo(hm.map);
+  /* draw a box: click-hold-drag selects everything inside */
+  const Draw = L.Control.extend({ onAdd() { const b = L.DomUtil.create("button", "leaflet-bar"); b.type = "button"; b.id = "draw-btn"; b.title = "Draw a box to select an area"; b.style.cssText = "width:34px;height:34px;background:#fff;border:0;cursor:pointer;font-size:15px;line-height:34px;text-align:center;color:#15202B"; b.textContent = "▭"; L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); setDrawMode(!hm.drawMode); }); return b; } });
+  new Draw({ position: "topleft" }).addTo(hm.map);
+  const mapEl = document.getElementById("map");
+  let start = null, rect = null;
+  const toLatLng = ev => { const t = ev.touches ? ev.touches[0] : ev; const r = mapEl.getBoundingClientRect(); return hm.map.containerPointToLatLng([t.clientX - r.left, t.clientY - r.top]); };
+  const down = ev => { if (!hm.drawMode) return; ev.preventDefault(); start = toLatLng(ev); rect = L.rectangle([start, start], { color: "#F2B705", weight: 2, fillOpacity: .12 }).addTo(hm.map); };
+  const move = ev => { if (!start) return; ev.preventDefault(); rect.setBounds(L.latLngBounds(start, toLatLng(ev))); };
+  const up = () => { if (!start) return; const b = rect.getBounds(); hm.map.removeLayer(rect); rect = null; start = null; setDrawMode(false);
+    if (b.getNorth() - b.getSouth() < 0.0005 && b.getEast() - b.getWest() < 0.0005) return;
+    setArea(b); filtered().forEach(p => hm.selected.add(p.id)); renderHitmap(); };
+  mapEl.addEventListener("mousedown", down); mapEl.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+  mapEl.addEventListener("touchstart", down, { passive: false }); mapEl.addEventListener("touchmove", move, { passive: false }); window.addEventListener("touchend", up);
   const STYLES = {
     standard: { url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "&copy; OpenStreetMap contributors" },
     grey: { url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", attr: "&copy; OpenStreetMap contributors &copy; CARTO" },
@@ -1053,13 +1093,25 @@ function fillFilters() {
   opts("f-city", uniq("city"), "All cities"); opts("f-county", uniq("county"), "All counties"); opts("f-cat", uniq("category"), "All categories");
   $("cat-list").innerHTML = uniq("category").map(v => `<option value="${esc(v)}">`).join("");
 }
+hm.statuses = new Set(); hm.area = null;
 function filtered() {
-  const q = $("f-q").value.trim().toLowerCase(), r = +$("f-radius").value || 0, st = $("f-status").value, city = $("f-city").value, county = $("f-county").value, cat = $("f-cat").value;
+  const q = $("f-q").value.trim().toLowerCase(), r = +$("f-radius").value || 0, city = $("f-city").value, county = $("f-county").value, cat = $("f-cat").value;
   return hm.prospects.filter(p =>
     (!q || [p.name, p.address, p.city, p.category, p.email, p.notes].join(" ").toLowerCase().includes(q)) &&
-    (!r || (p.dist != null && p.dist <= r)) && (!st || p.status === st) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat));
+    (!r || (p.dist != null && p.dist <= r)) && (!hm.statuses.size || hm.statuses.has(p.status)) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat) &&
+    (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))));
 }
-["f-q", "f-radius", "f-status", "f-city", "f-county", "f-cat"].forEach(id => $(id).addEventListener("input", renderHitmap));
+["f-q", "f-radius", "f-city", "f-county", "f-cat"].forEach(id => $(id).addEventListener("input", renderHitmap));
+$("f-status").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; const k = b.dataset.s; hm.statuses.has(k) ? hm.statuses.delete(k) : hm.statuses.add(k); b.setAttribute("aria-pressed", String(hm.statuses.has(k))); renderHitmap(); });
+function setArea(bounds) {
+  hm.area = bounds;
+  if (hm.areaRect) { hm.map.removeLayer(hm.areaRect); hm.areaRect = null; }
+  if (bounds) { hm.areaRect = L.rectangle(bounds, { color: "#15202B", weight: 1.5, dashArray: "6 4", fillOpacity: .05 }).addTo(hm.map); }
+  $("area-note").hidden = !bounds;
+  if (bounds) { const n = filtered().length; $("area-text").textContent = `Showing the ${n} inside the box you drew`; }
+  renderHitmap();
+}
+$("area-clear").addEventListener("click", () => setArea(null));
 
 function renderHitmap() {
   const list = filtered();
@@ -1408,6 +1460,36 @@ ctx.addEventListener("click", e => {
   if (b.dataset.act === "contacted") setStatus([id], "contacted");
   if (b.dataset.act === "skip") setStatus([id], "skip");
   if (b.dataset.act === "delete") { const p = hm.prospects.find(q => q.id === id); if (confirm(`Delete ${p.name}?`)) api("delete", { ids: [id] }).then(() => { hm.prospects = hm.prospects.filter(q => q.id !== id); hm.selected.delete(id); fillFilters(); renderHitmap(); }).catch(err => alert(err.message)); }
+});
+
+
+function setDrawMode(on) {
+  hm.drawMode = on;
+  const b = document.getElementById("draw-btn"); if (b) { b.style.background = on ? "#F2B705" : "#fff"; }
+  document.getElementById("map").classList.toggle("drawing", on);
+  if (on) { hm.map.dragging.disable(); hm.map.closePopup(); } else { hm.map.dragging.enable(); }
+}
+/* ---- find businesses (Google Places text search) ---- */
+$("hm-discover").addEventListener("click", () => {
+  $("dv-err").textContent = ""; $("dv-q").value = ""; $("dv-cat").value = "";
+  const hasArea = !!hm.area; $("dv-where-area").disabled = !hasArea; $("dv-area-hint").textContent = hasArea ? "" : "(draw one first with the ▭ button on the map)";
+  if (hasArea) $("dv-where-area").checked = true; else document.querySelector('input[name="dv-where"][value="radius"]').checked = true;
+  if (!hm.template.has_places_key) $("dv-err").textContent = "No Google Places key saved. Add it under Email settings first.";
+  openModal("m-discover");
+});
+$("dv-go").addEventListener("click", async () => {
+  const q = $("dv-q").value.trim(); if (!q) { $("dv-err").textContent = "Type what to look for."; return; }
+  const btn = $("dv-go"); btn.disabled = true; $("dv-err").textContent = "Searching Google…";
+  const payload = { query: q, category: $("dv-cat").value.trim() || null, pages: +$("dv-pages").value };
+  const useArea = document.querySelector('input[name="dv-where"]:checked').value === "area" && hm.area;
+  if (useArea) payload.bounds = { north: hm.area.getNorth(), south: hm.area.getSouth(), east: hm.area.getEast(), west: hm.area.getWest() };
+  else payload.radius_mi = +$("dv-radius").value;
+  try {
+    const r = await api("discover", payload);
+    if (r.google_error) { $("dv-err").textContent = "Google: " + r.google_error; }
+    else { $("dv-err").textContent = `Found ${r.found}, added ${r.inserted} new (the rest were already on the map).`; await loadProspects(); }
+  } catch (e) { $("dv-err").textContent = e.message; }
+  btn.disabled = false;
 });
 
 /* Pricing request: builds a mailto so it works with no backend */
