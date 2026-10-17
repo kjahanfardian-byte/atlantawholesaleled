@@ -498,7 +498,7 @@
       </div>
       <div class="hm-filters">
         <input class="full" id="f-q" type="search" placeholder="Type a target: gas stations, dealerships, a company name…">
-        <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Pull from Google</button></div>
+        <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Quick pull (up to 60)</button><button class="btn dark" type="button" id="f-sweep" style="padding:6px 12px;font-size:13px">Sweep everything</button><select id="f-sweep-scope" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px"><option value="box">in the box I drew</option><option value="25">within 25 mi</option><option value="40" selected>within 40 mi</option><option value="60">within 60 mi</option><option value="ga">all of Georgia</option></select></div>
         <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option></select>
         <div id="f-status" class="stchips" aria-label="Status filter"><button type="button" data-s="new" class="pill new" aria-pressed="false">new</button><button type="button" data-s="contacted" class="pill contacted" aria-pressed="false">contacted</button><button type="button" data-s="replied" class="pill replied" aria-pressed="false">replied</button><button type="button" data-s="customer" class="pill customer" aria-pressed="false">customer</button><button type="button" data-s="skip" class="pill skip" aria-pressed="false">skip</button></div>
         <select id="f-city"><option value="">All cities</option></select>
@@ -1112,7 +1112,7 @@ function updateSourceLine(shown) {
 $("f-source-go").addEventListener("click", async () => {
   const q = $("f-q").value.trim(); if (!q) return;
   const btn = $("f-source-go"); btn.disabled = true; btn.textContent = "Searching…";
-  const payload = { query: q, category: q.replace(/\b\w/g, c => c.toUpperCase()), pages: 5 };
+  const payload = { query: q, category: q.replace(/\b\w/g, c => c.toUpperCase()), pages: 3 };
   if (hm.area) payload.bounds = { north: hm.area.getNorth(), south: hm.area.getSouth(), east: hm.area.getEast(), west: hm.area.getWest() };
   else payload.radius_mi = +$("f-radius").value || 25;
   try {
@@ -1120,7 +1120,7 @@ $("f-source-go").addEventListener("click", async () => {
     if (r.google_error) alert("Google: " + r.google_error);
     else { await loadProspects(); $("hm-stats").textContent += ` · pulled ${r.found}, ${r.inserted} new`; }
   } catch (e) { alert(e.message); }
-  btn.disabled = false; btn.textContent = "Pull from Google";
+  btn.disabled = false; btn.textContent = "Quick pull (up to 60)";
 });
 $("f-status").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; const k = b.dataset.s; hm.statuses.has(k) ? hm.statuses.delete(k) : hm.statuses.add(k); b.setAttribute("aria-pressed", String(hm.statuses.has(k))); renderHitmap(); });
 function setArea(bounds) {
@@ -1512,6 +1512,40 @@ $("dv-go").addEventListener("click", async () => {
     else { $("dv-err").textContent = `Found ${r.found}, added ${r.inserted} new (the rest were already on the map).`; await loadProspects(); }
   } catch (e) { $("dv-err").textContent = e.message; }
   btn.disabled = false;
+});
+
+
+/* ---- sweep: grid the area and search every cell so results aren’t capped at 60 ---- */
+function gridFor(scope) {
+  let b;
+  if (scope === "box") { if (!hm.area) return null; b = hm.area; }
+  else if (scope === "ga") b = L.latLngBounds([30.35, -85.61], [35.0, -80.84]);
+  else { const mi = +scope, dLat = mi / 69, dLng = mi / (69 * Math.cos(HQ.lat * Math.PI / 180)); b = L.latLngBounds([HQ.lat - dLat, HQ.lng - dLng], [HQ.lat + dLat, HQ.lng + dLng]); }
+  const cellMi = scope === "ga" ? 15 : Math.max(5, Math.min(10, (+scope || 20) / 4));
+  const latStep = cellMi / 69, lngStep = cellMi / (69 * Math.cos(b.getCenter().lat * Math.PI / 180));
+  const cells = [];
+  for (let lat = b.getSouth(); lat < b.getNorth(); lat += latStep) for (let lng = b.getWest(); lng < b.getEast(); lng += lngStep)
+    cells.push({ south: lat, north: Math.min(lat + latStep, b.getNorth()), west: lng, east: Math.min(lng + lngStep, b.getEast()) });
+  return cells;
+}
+$("f-sweep").addEventListener("click", async () => {
+  const q = $("f-q").value.trim(); if (!q) return;
+  const scope = $("f-sweep-scope").value;
+  const cells = gridFor(scope);
+  if (!cells) { alert("Draw a box on the map first (▭ button), or pick a distance."); return; }
+  const est = cells.length * 2;
+  if (!confirm(`Sweep “${q}” across ${cells.length} map sections${scope === "ga" ? " covering Georgia" : ""}. That’s roughly ${est} Google requests (about $${(est * 0.032).toFixed(0)} of your free monthly credit) and takes a few minutes. Continue?`)) return;
+  const btn = $("f-sweep"); btn.disabled = true; $("f-source-go").disabled = true;
+  let found = 0, added = 0, done = 0, errors = 0;
+  for (const c of cells) {
+    btn.textContent = `Sweeping ${++done}/${cells.length}…`;
+    try { const r = await api("discover", { query: q, category: q.replace(/\b\w/g, ch => ch.toUpperCase()), pages: 3, bounds: c }); if (r.google_error) { errors++; if (errors > 5) { alert("Google: " + r.google_error); break; } } else { found += r.found; added += r.inserted; } }
+    catch (e) { errors++; if (errors > 5) { alert(e.message); break; } }
+    if (done % 6 === 0) await loadProspects();
+  }
+  await loadProspects();
+  btn.disabled = false; btn.textContent = "Sweep everything"; $("f-source-go").disabled = false;
+  $("hm-stats").textContent += ` · sweep done: ${added} new of ${found} found`;
 });
 
 /* Pricing request: builds a mailto so it works with no backend */
