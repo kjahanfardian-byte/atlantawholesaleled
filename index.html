@@ -265,6 +265,12 @@
   .msg .bd { white-space: pre-wrap; font-size: 14px; margin-top: 8px; line-height: 1.45; max-height: 320px; overflow: auto; }
   .msg .bd.html iframe { width: 100%; height: 320px; border: 0; background: #fff; border-radius: 6px; }
   .reply-box textarea { min-height: 120px; }
+  .ctx { position: fixed; z-index: 95; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 40px var(--drawer-shadow); min-width: 190px; padding: 6px; display: none; }
+  .ctx.open { display: block; }
+  .ctx .hd { font-size: 12px; color: var(--mute); padding: 6px 10px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+  .ctx button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--ink); }
+  .ctx button:hover { background: var(--paper-2); }
+  .ctx button.danger { color: #B42318; }
 
   /* Pricing / how it works */
   .pricing { border-top: 1px solid var(--line); background: var(--paper); padding: clamp(48px, 6vw, 96px) 0; }
@@ -513,10 +519,28 @@
     <p class="err" id="c-err"></p>
     <div class="field"><label for="c-subject">Subject</label><input id="c-subject"></div>
     <div class="field"><label for="c-body">Message</label><textarea id="c-body" style="min-height:220px"></textarea></div>
-    <p class="note">Placeholders: {{business}}, {{city}}, {{category}}. Each recipient gets their own email.</p>
+    <p class="note" id="c-note">Placeholders: {{business}}, {{city}}, {{category}}. Each recipient gets their own email.</p>
     <label style="font-size:14px"><input type="checkbox" id="c-attach" checked> Attach the catalog PDF</label>
+    <button class="link" type="button" id="c-preview" style="margin-left:12px;background:none;border:0;color:var(--ink);text-decoration:underline;cursor:pointer;font-size:14px">Preview PDF</button>
     <div class="send-log" id="c-log" hidden></div>
     <div class="actions"><button class="btn ghost" type="button" id="c-save">Save as template</button><button class="btn ghost" type="button" data-close="m-compose">Close</button><button class="btn primary" type="button" id="c-send">Send</button></div>
+  </div>
+</div>
+
+<div class="ctx" id="ctx" role="menu">
+  <div class="hd" id="ctx-name"></div>
+  <button type="button" data-act="email">Email this business</button>
+  <button type="button" data-act="details">Details</button>
+  <button type="button" data-act="map">Show on map</button>
+  <button type="button" data-act="contacted">Mark contacted</button>
+  <button type="button" data-act="skip">Skip</button>
+  <button type="button" data-act="delete" class="danger">Delete</button>
+</div>
+
+<div class="modal" id="m-pdf" role="dialog" aria-modal="true" aria-label="Attachment preview">
+  <div class="box wide" style="height:calc(100vh - 32px);display:flex;flex-direction:column;padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px"><b id="pdf-title">Attachment</b><button class="btn ghost" type="button" data-close="m-pdf" style="padding:6px 12px">Close</button></div>
+    <iframe id="pdf-frame" title="PDF preview" style="flex:1;border:1px solid var(--line);border-radius:8px;background:#fff;width:100%"></iframe>
   </div>
 </div>
 
@@ -997,7 +1021,19 @@ function initMap() {
   hm.map.on("zoomend", () => { if (!hm.programmatic) hm.map.panTo([HQ.lat, HQ.lng], { animate: false }); });
   const Home = L.Control.extend({ onAdd() { const b = L.DomUtil.create("button", "leaflet-bar"); b.type = "button"; b.title = "Back to Tucker"; b.style.cssText = "width:34px;height:34px;background:#fff;border:0;cursor:pointer;font-size:16px;line-height:34px;text-align:center;color:#15202B"; b.textContent = "⌂"; L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); hm.map.setView([HQ.lat, HQ.lng], 11); }); return b; } });
   new Home({ position: "topleft" }).addTo(hm.map);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(hm.map);
+  const STYLES = {
+    standard: { url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "&copy; OpenStreetMap contributors" },
+    grey: { url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", attr: "&copy; OpenStreetMap contributors &copy; CARTO" },
+    dark: { url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", attr: "&copy; OpenStreetMap contributors &copy; CARTO" },
+  };
+  let styleKey = localStorage.getItem("awl_map_style") || "standard";
+  hm.tiles = L.tileLayer(STYLES[styleKey].url, { maxZoom: 19, attribution: STYLES[styleKey].attr }).addTo(hm.map);
+  const StyleCtl = L.Control.extend({ onAdd() {
+    const d = L.DomUtil.create("div", "leaflet-bar"); d.style.cssText = "background:#fff;padding:4px;display:flex;gap:2px";
+    ["standard", "grey", "dark"].forEach(k => { const b = L.DomUtil.create("button", "", d); b.type = "button"; b.textContent = k[0].toUpperCase() + k.slice(1); b.dataset.k = k; b.style.cssText = "border:0;background:" + (k === styleKey ? "#15202B" : "transparent") + ";color:" + (k === styleKey ? "#fff" : "#15202B") + ";padding:4px 8px;border-radius:4px;cursor:pointer;font:600 12px/1.2 inherit";
+      L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); styleKey = k; localStorage.setItem("awl_map_style", k); hm.tiles.setUrl(STYLES[k].url); hm.map.attributionControl.setPrefix(""); [...d.children].forEach(x => { const on = x.dataset.k === k; x.style.background = on ? "#15202B" : "transparent"; x.style.color = on ? "#fff" : "#15202B"; }); }); });
+    L.DomEvent.disableClickPropagation(d); return d; } });
+  new StyleCtl({ position: "topright" }).addTo(hm.map);
   L.marker([HQ.lat, HQ.lng], { icon: L.divIcon({ className: "", html: '<div class="pin hq"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 1000 }).addTo(hm.map).bindPopup(`<b>${HQ.name}</b><br>1810 Auger Dr, Ste A`);
   hm.layer = L.layerGroup().addTo(hm.map);
   setTimeout(() => hm.map.invalidateSize(), 100);
@@ -1045,6 +1081,7 @@ function renderHitmap() {
     const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: `<div class="pin ${p.status}">${check}</div>`, iconSize: [14, 14], iconAnchor: [7, 7] }) });
     m.bindPopup(`<b>${esc(p.name)}</b><br>${esc(p.address || "")}${p.city ? ", " + esc(p.city) : ""}<br>${p.phone ? esc(p.phone) + "<br>" : ""}${p.email ? esc(p.email) + "<br>" : ""}<span class="pill ${p.status}">${p.status}</span><br><span class="plink" data-open="${p.id}">Details</span>${p.status !== "contacted" ? `<span class="plink" data-contacted="${p.id}">Mark contacted</span>` : ""}`);
     m.on("click", () => { hm.active = p.id; });
+    m.on("contextmenu", ev => { L.DomEvent.stop(ev); openCtx(p.id, ev.originalEvent.clientX, ev.originalEvent.clientY); });
     m.addTo(hm.layer); hm.markers[p.id] = m;
   });
   // radius ring
@@ -1129,13 +1166,18 @@ function openComposer() {
   const ids = [...hm.selected]; const rows = hm.prospects.filter(p => ids.includes(p.id));
   const withEmail = rows.filter(p => p.email), without = rows.filter(p => !p.email);
   $("c-to").textContent = `${withEmail.length} recipient${withEmail.length === 1 ? "" : "s"} with an email address` + (without.length ? `. ${without.length} selected prospect${without.length === 1 ? " has" : "s have"} no email and will be skipped: ${without.slice(0, 5).map(p => p.name).join(", ")}${without.length > 5 ? "…" : ""}` : ".");
-  $("c-subject").value = hm.template.subject || ""; $("c-body").value = hm.template.body || "";
+  const fill = (tpl, p) => String(tpl || "").replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (p[k] ?? ({ business: p.name, company: p.name })[k] ?? ""));
+  if (rows.length === 1) { $("c-subject").value = fill(hm.template.subject, rows[0]); $("c-body").value = fill(hm.template.body, rows[0]); }
+  else { $("c-subject").value = hm.template.subject || ""; $("c-body").value = hm.template.body || ""; }
+  hm.composeSingle = rows.length === 1 ? rows[0] : null;
+  $("c-note").textContent = rows.length === 1 ? `Filled in for ${rows[0].name}. Edit anything before sending.` : "Placeholders: {{business}}, {{city}}, {{category}}. Each recipient gets their own email.";
   $("c-err").textContent = hm.template.has_resend_key ? "" : "No Resend API key saved yet. Add it under Email settings before sending.";
   $("c-log").hidden = true; $("c-log").innerHTML = "";
   $("c-send").disabled = !withEmail.length;
   openModal("m-compose");
 }
 $("c-save").addEventListener("click", async () => {
+  if (hm.composeSingle && !confirm("This draft has " + hm.composeSingle.name + "’s details filled in. Save it as the template for everyone anyway?")) return;
   try { await api("save_template", { values: { email_subject: $("c-subject").value, email_body: $("c-body").value } }); hm.template.subject = $("c-subject").value; hm.template.body = $("c-body").value; $("c-err").textContent = "Template saved."; } catch (e) { $("c-err").textContent = e.message; }
 });
 $("c-send").addEventListener("click", async () => {
@@ -1324,11 +1366,48 @@ $("hm-enrich").addEventListener("click", async () => {
     try {
       const r = await api("enrich", { ids: pool.slice(i, i + 8) });
       r.results.forEach(x => { const p = hm.prospects.find(q => q.id === x.id); if (!p) return; if (x.email) { p.email = x.email; emails++; } if (x.phone) { p.phone = x.phone; phones++; } if (x.website) p.website = x.website; if (x.notes) p.notes = x.notes; });
+      const gerr = r.results.find(x => x.google_error);
+      if (gerr && i === 0) { alert("Google refused the lookup: " + gerr.google_error + "\n\nUsually this means \"Places API (New)\" isn’t enabled on the key yet. Enable it at console.cloud.google.com → APIs & Services → Library, then run Find contacts again. Website scans still ran for prospects that already have a website."); }
     } catch (e) { alert("Stopped: " + e.message); break; }
     done = Math.min(pool.length, i + 8); renderHitmap();
   }
   btn.disabled = false; btn.textContent = "Find contacts";
   $("hm-stats").textContent += ` · lookup done: ${emails} emails, ${phones} phones found`;
+});
+
+
+$("c-preview").addEventListener("click", () => {
+  const url = hm.template.attachment_url; if (!url) { alert("No attachment URL is set. Add one under Email settings."); return; }
+  $("pdf-title").textContent = hm.template.attachment_name || "Attachment";
+  $("pdf-frame").src = url + (url.includes("#") ? "" : "#toolbar=0&view=FitH");
+  openModal("m-pdf");
+});
+document.querySelector('[data-close="m-pdf"]').addEventListener("click", () => { $("pdf-frame").src = "about:blank"; });
+
+
+/* ---- right-click menu ---- */
+const ctx = $("ctx"); let ctxId = null;
+function openCtx(id, x, y) {
+  const p = hm.prospects.find(q => q.id === id); if (!p) return;
+  ctxId = id; $("ctx-name").textContent = p.name;
+  ctx.classList.add("open");
+  const w = ctx.offsetWidth, h = ctx.offsetHeight;
+  ctx.style.left = Math.min(x, window.innerWidth - w - 8) + "px"; ctx.style.top = Math.min(y, window.innerHeight - h - 8) + "px";
+}
+function closeCtx() { ctx.classList.remove("open"); ctxId = null; }
+$("hm-list").addEventListener("contextmenu", e => { const row = e.target.closest(".pr"); if (!row) return; e.preventDefault(); openCtx(row.dataset.id, e.clientX, e.clientY); });
+document.addEventListener("click", e => { if (!ctx.contains(e.target)) closeCtx(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeCtx(); });
+window.addEventListener("scroll", closeCtx, true);
+ctx.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || !ctxId) return;
+  const id = ctxId; closeCtx();
+  if (b.dataset.act === "email") { hm.selected = new Set([id]); updateSel(); openComposer(); }
+  if (b.dataset.act === "details") openDetail(id);
+  if (b.dataset.act === "map") focusProspect(id);
+  if (b.dataset.act === "contacted") setStatus([id], "contacted");
+  if (b.dataset.act === "skip") setStatus([id], "skip");
+  if (b.dataset.act === "delete") { const p = hm.prospects.find(q => q.id === id); if (confirm(`Delete ${p.name}?`)) api("delete", { ids: [id] }).then(() => { hm.prospects = hm.prospects.filter(q => q.id !== id); hm.selected.delete(id); fillFilters(); renderHitmap(); }).catch(err => alert(err.message)); }
 });
 
 /* Pricing request: builds a mailto so it works with no backend */
