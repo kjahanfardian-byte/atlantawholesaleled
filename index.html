@@ -495,7 +495,8 @@
         <div class="threads" id="threads"></div>
       </div>
       <div class="hm-filters">
-        <input class="full" id="f-q" type="search" placeholder="Search name, address, category">
+        <input class="full" id="f-q" type="search" placeholder="Type a target: gas stations, dealerships, a company name…">
+        <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Pull from Google</button></div>
         <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option></select>
         <div id="f-status" class="stchips" aria-label="Status filter"><button type="button" data-s="new" class="pill new" aria-pressed="false">new</button><button type="button" data-s="contacted" class="pill contacted" aria-pressed="false">contacted</button><button type="button" data-s="replied" class="pill replied" aria-pressed="false">replied</button><button type="button" data-s="customer" class="pill customer" aria-pressed="false">customer</button><button type="button" data-s="skip" class="pill skip" aria-pressed="false">skip</button></div>
         <select id="f-city"><option value="">All cities</option></select>
@@ -1102,6 +1103,26 @@ function filtered() {
     (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))));
 }
 ["f-q", "f-radius", "f-city", "f-county", "f-cat"].forEach(id => $(id).addEventListener("input", renderHitmap));
+function updateSourceLine(shown) {
+  const q = $("f-q").value.trim(); const box = $("f-source");
+  if (!q || q.length < 3) { box.hidden = true; return; }
+  const where = hm.area ? "inside the box you drew" : `within ${$("f-radius").value || 25} miles of Tucker`;
+  $("f-source-text").textContent = `${shown} on the map match “${q}”. Find every “${q}” business ${where}:`;
+  box.hidden = false;
+}
+$("f-source-go").addEventListener("click", async () => {
+  const q = $("f-q").value.trim(); if (!q) return;
+  const btn = $("f-source-go"); btn.disabled = true; btn.textContent = "Searching…";
+  const payload = { query: q, category: q.replace(/\b\w/g, c => c.toUpperCase()), pages: 5 };
+  if (hm.area) payload.bounds = { north: hm.area.getNorth(), south: hm.area.getSouth(), east: hm.area.getEast(), west: hm.area.getWest() };
+  else payload.radius_mi = +$("f-radius").value || 25;
+  try {
+    const r = await api("discover", payload);
+    if (r.google_error) alert("Google: " + r.google_error);
+    else { await loadProspects(); $("hm-stats").textContent += ` · pulled ${r.found}, ${r.inserted} new`; }
+  } catch (e) { alert(e.message); }
+  btn.disabled = false; btn.textContent = "Pull from Google";
+});
 $("f-status").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; const k = b.dataset.s; hm.statuses.has(k) ? hm.statuses.delete(k) : hm.statuses.add(k); b.setAttribute("aria-pressed", String(hm.statuses.has(k))); renderHitmap(); });
 function setArea(bounds) {
   hm.area = bounds;
@@ -1117,6 +1138,7 @@ function renderHitmap() {
   const list = filtered();
   const total = hm.prospects.length, contacted = hm.prospects.filter(p => p.status === "contacted" || p.status === "replied" || p.status === "customer").length;
   $("hm-stats").textContent = `${list.length} shown of ${total} · ${contacted} contacted · ${hm.prospects.filter(p => p.email).length} with email`;
+  updateSourceLine(list.length);
   // list
   $("hm-list").innerHTML = list.map(p => `
     <div class="pr${hm.active === p.id ? " active" : ""}" data-id="${p.id}">
