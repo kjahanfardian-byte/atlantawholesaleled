@@ -1434,19 +1434,20 @@ $("hm-enrich").addEventListener("click", async () => {
   if (!hm.template.has_places_key) { if (!confirm("No Google Places key is saved, so phones and websites can’t be pulled from Google; only prospects that already have a website will be scanned for an email. Continue anyway?")) return; }
   if (!confirm(`Look up contacts for ${pool.length} prospect${pool.length === 1 ? "" : "s"}? This runs in small batches and can take a few minutes.`)) return;
   const btn = $("hm-enrich"); btn.disabled = true;
-  let done = 0, emails = 0, phones = 0;
-  for (let i = 0; i < pool.length; i += 8) {
+  let done = 0, emails = 0, phones = 0, failed = 0;
+  for (let i = 0; i < pool.length; i += 3) {
     btn.textContent = `Finding… ${done}/${pool.length}`;
     try {
-      const r = await api("enrich", { ids: pool.slice(i, i + 8) });
+      const r = await api("enrich", { ids: pool.slice(i, i + 3) });
       r.results.forEach(x => { const p = hm.prospects.find(q => q.id === x.id); if (!p) return; if (x.email) { p.email = x.email; emails++; } if (x.phone) { p.phone = x.phone; phones++; } if (x.website) p.website = x.website; if (x.notes) p.notes = x.notes; });
       const gerr = r.results.find(x => x.google_error);
       if (gerr && i === 0) { alert("Google refused the lookup: " + gerr.google_error + "\n\nUsually this means \"Places API (New)\" isn’t enabled on the key yet. Enable it at console.cloud.google.com → APIs & Services → Library, then run Find contacts again. Website scans still ran for prospects that already have a website."); }
-    } catch (e) { alert("Stopped: " + e.message); break; }
-    done = Math.min(pool.length, i + 8); renderHitmap();
+    } catch (e) { failed += 3; if (failed > 15) { alert("Too many lookups failed in a row; stopping. Run Find contacts again later to pick up where it left off."); break; } }
+    done = Math.min(pool.length, i + 3); renderHitmap();
   }
   btn.disabled = false; btn.textContent = "Find contacts";
-  $("hm-stats").textContent += ` · lookup done: ${emails} emails, ${phones} phones found`;
+  await loadProspects();
+  $("hm-stats").textContent += ` · lookup done: ${emails} emails, ${phones} phones found${failed ? ", " + failed + " skipped" : ""}`;
 });
 
 
