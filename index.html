@@ -231,7 +231,9 @@
   .hm-detail .close { position: absolute; top: 10px; right: 10px; }
   .send-log { font-size: 13.5px; margin-top: 10px; max-height: 220px; overflow: auto; border-top: 1px solid var(--line); padding-top: 8px; }
   .send-log .ok { color: #1B6B3F; } .send-log .bad { color: #B42318; }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .leaflet-tile { filter: brightness(.85) contrast(1.05); } }
+  #map.style-grey .leaflet-tile-pane { filter: grayscale(1) brightness(1.04) contrast(.92); }
+  #map.style-dark .leaflet-tile-pane { filter: grayscale(1) invert(1) brightness(.85) contrast(.9); }
+  #map.style-dark { background: #1a1d21; }
   .hm-tabs { display: flex; border-bottom: 1px solid var(--line); }
   .hm-tabs button { flex: 1; padding: 10px; background: none; border: 0; border-bottom: 3px solid transparent; font-weight: 700; font-size: 14px; cursor: pointer; color: var(--ink-2); }
   .hm-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
@@ -1062,17 +1064,14 @@ function initMap() {
     setArea(b); filtered().forEach(p => hm.selected.add(p.id)); renderHitmap(); };
   mapEl.addEventListener("mousedown", down); mapEl.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
   mapEl.addEventListener("touchstart", down, { passive: false }); mapEl.addEventListener("touchmove", move, { passive: false }); window.addEventListener("touchend", up);
-  const STYLES = {
-    standard: { url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "&copy; OpenStreetMap contributors" },
-    grey: { url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", attr: "&copy; OpenStreetMap contributors &copy; CARTO" },
-    dark: { url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", attr: "&copy; OpenStreetMap contributors &copy; CARTO" },
-  };
+  hm.tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(hm.map);
   let styleKey = localStorage.getItem("awl_map_style") || "standard";
-  hm.tiles = L.tileLayer(STYLES[styleKey].url, { maxZoom: 19, attribution: STYLES[styleKey].attr }).addTo(hm.map);
+  const applyStyle = k => { const el = document.getElementById("map"); el.classList.remove("style-grey", "style-dark"); if (k !== "standard") el.classList.add("style-" + k); };
+  applyStyle(styleKey);
   const StyleCtl = L.Control.extend({ onAdd() {
     const d = L.DomUtil.create("div", "leaflet-bar"); d.style.cssText = "background:#fff;padding:4px;display:flex;gap:2px";
     ["standard", "grey", "dark"].forEach(k => { const b = L.DomUtil.create("button", "", d); b.type = "button"; b.textContent = k[0].toUpperCase() + k.slice(1); b.dataset.k = k; b.style.cssText = "border:0;background:" + (k === styleKey ? "#15202B" : "transparent") + ";color:" + (k === styleKey ? "#fff" : "#15202B") + ";padding:4px 8px;border-radius:4px;cursor:pointer;font:600 12px/1.2 inherit";
-      L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); styleKey = k; localStorage.setItem("awl_map_style", k); hm.tiles.setUrl(STYLES[k].url); hm.map.attributionControl.setPrefix(""); [...d.children].forEach(x => { const on = x.dataset.k === k; x.style.background = on ? "#15202B" : "transparent"; x.style.color = on ? "#fff" : "#15202B"; }); }); });
+      L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); styleKey = k; localStorage.setItem("awl_map_style", k); applyStyle(k); [...d.children].forEach(x => { const on = x.dataset.k === k; x.style.background = on ? "#15202B" : "transparent"; x.style.color = on ? "#fff" : "#15202B"; }); }); });
     L.DomEvent.disableClickPropagation(d); return d; } });
   new StyleCtl({ position: "topright" }).addTo(hm.map);
   L.marker([HQ.lat, HQ.lng], { icon: L.divIcon({ className: "", html: '<div class="pin hq"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 1000 }).addTo(hm.map).bindPopup(`<b>${HQ.name}</b><br>1810 Auger Dr, Ste A`);
