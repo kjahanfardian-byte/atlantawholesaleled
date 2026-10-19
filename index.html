@@ -590,6 +590,11 @@
       <div class="field"><label for="dv-cat">Save as category</label><input id="dv-cat" placeholder="Defaults to the search words"></div>
       <div class="field"><label for="dv-pages">How many</label><select id="dv-pages"><option value="1">Up to 20</option><option value="3" selected>Up to 60</option><option value="5">Up to 100</option></select></div>
     </div>
+    <div class="field"><label>Source</label>
+      <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-src" value="google" checked> Google Maps (every storefront, pins and phones)</label>
+      <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-src" value="apollo" id="dv-src-apollo"> Apollo (companies with staff, websites and decision-makers) <span class="note" id="dv-apollo-hint"></span></label>
+    </div>
+    <div class="field" id="dv-size-field"><label for="dv-size">Company size (Apollo only)</label><select id="dv-size"><option value="">Any size</option><option value="1,10">1 to 10 employees</option><option value="11,50">11 to 50</option><option value="51,200">51 to 200</option><option value="201,1000">201 to 1,000</option></select></div>
     <div class="field"><label>Where</label>
       <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-where" value="area" id="dv-where-area"> The area I drew on the map <span id="dv-area-hint" class="note"></span></label>
       <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-where" value="radius" checked> Within <select id="dv-radius" style="padding:4px 8px"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="25">25</option><option value="40">40</option></select> miles of Tucker</label>
@@ -615,6 +620,7 @@
     <div class="field"><label for="s-att-name">Attachment file name</label><input id="s-att-name"></div>
     <div class="field"><label for="s-key">Resend API key</label><input id="s-key" type="password" placeholder="re_…"><span class="note" id="s-key-note"></span></div>
     <div class="field"><label for="s-gkey">Google Places API key</label><input id="s-gkey" type="password" placeholder="AIza…"><span class="note" id="s-gkey-note">Used by Find contacts to pull each business’s phone and website from Google.</span></div>
+    <div class="field"><label for="s-apollo">Apollo.io API key</label><input id="s-apollo" type="password" placeholder="Paste to find owners and purchasing contacts by name"><span class="note">Used by Find contacts to pull the decision-maker (owner, purchasing, ops) with a verified email, and by Find businesses as a second source.</span></div>
     <div class="field"><label for="s-hunter">Hunter.io API key (optional)</label><input id="s-hunter" type="password" placeholder="Paste to find emails Google and the website don’t show"><span class="note">Free at hunter.io (25 lookups/month); used only when the website scan finds nothing.</span></div>
     <div class="field"><label for="s-whsec">Resend webhook signing secret</label><input id="s-whsec" type="password" placeholder="whsec_…"><span class="note" id="s-whsec-note">Lets the inbox show delivered, opened and bounced. Webhook URL: https://byqzgilixiyvcxcszjrv.supabase.co/functions/v1/awl-api</span></div>
     <div class="actions"><button class="btn ghost" type="button" data-close="m-settings">Cancel</button><button class="btn primary" type="button" id="s-save">Save</button></div>
@@ -1180,7 +1186,7 @@ function renderHitmap() {
     <div class="pr${hm.active === p.id ? " active" : ""}${isDone(p.id) ? " done" : ""}" data-id="${p.id}">
       ${hm.folder ? `<button type="button" class="donebtn" aria-pressed="${isDone(p.id)}" title="Mark done">✓</button>` : `<input type="checkbox" ${hm.selected.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}">`}
       <div><div class="nm">${esc(p.name)}</div>
-        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.phone ? " · " + esc(p.phone) : ""}<br>${p.email ? esc(p.email) + ((p.notes || "").match(/Email source: ([^\n]+)/) ? ` <span style="opacity:.7">(${esc((p.notes.match(/Email source: ([^\n]+)/) || [])[1])})</span>` : "") : (p.website ? '<span class="noemail">no email found on site</span>' : '<span class="noemail">no website, no email</span>')}</div></div>
+        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.phone ? " · " + esc(p.phone) : ""}${p.contact_name ? `<br><span style="color:var(--ink);font-weight:600">${esc(p.contact_name)}</span>${p.contact_title ? ", " + esc(p.contact_title) : ""}` : ""}<br>${p.email ? esc(p.email) + ((p.notes || "").match(/Email source: ([^\n]+)/) ? ` <span style="opacity:.7">(${esc((p.notes.match(/Email source: ([^\n]+)/) || [])[1])})</span>` : "") : (p.website ? '<span class="noemail">no email found on site</span>' : '<span class="noemail">no website, no email</span>')}</div></div>
       <div class="right"><span class="pill ${p.status}">${p.status}</span><br>${(() => { const m = hm.messages.find(x => x.prospect_id === p.id && x.direction === "out"); if (!m) return p.dist != null ? p.dist.toFixed(1) + " mi" : ""; const bad = /bounced|complained|failed/.test(m.status); return `<span title="${m.status}" style="color:${bad ? "#B42318" : "#1B6B3F"};font-weight:700">${bad ? "✗" : "✓"} ${m.status}</span>`; })()}</div>
     </div>`).join("") || `<div class="empty" style="border:0">No prospects match these filters.</div>`;
   // markers
@@ -1240,6 +1246,7 @@ function openDetail(id) {
     <span class="pill ${p.status}">${p.status}</span>${p.contacted_at ? ` <span class="note" style="font-size:12px;color:var(--mute)">contacted ${new Date(p.contacted_at).toLocaleDateString()}</span>` : ""}
     ${(() => { const fs = hm.folderItems.filter(i => i.prospect_id === id).map(i => { const f = hm.folders.find(x => x.id === i.folder_id); return f ? `<span class="pill ${i.done ? "contacted" : ""}">${i.done ? "✓ " : ""}${esc(f.name)}</span>` : ""; }).join(" "); return fs ? `<div style="margin:6px 0 2px;display:flex;gap:4px;flex-wrap:wrap">${fs}</div>` : ""; })()}
     <div class="f"><label>Status</label><select id="d-status">${STATUSES.map(s => `<option ${p.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+    ${p.contact_name ? `<div class="f"><label>Decision-maker</label><div style="font-size:14px"><b>${esc(p.contact_name)}</b>${p.contact_title ? ", " + esc(p.contact_title) : ""}${p.contact_phone ? " · " + esc(p.contact_phone) : ""}${p.linkedin ? ` · <a href="${esc(p.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}${p.employees ? ` · ${p.employees} employees` : ""}</div></div>` : ""}
     <div class="f"><label>Email</label><input id="d-email" value="${esc(p.email || "")}" placeholder="Add an email to include in sends"></div>
     <div class="f"><label>Phone</label><input id="d-phone" value="${esc(p.phone || "")}"></div>
     <div class="f"><label>Website</label><input id="d-web" value="${esc(p.website || "")}"></div>
@@ -1280,13 +1287,13 @@ function openComposer() {
   const ids = [...hm.selected]; const rows = hm.prospects.filter(p => ids.includes(p.id));
   const withEmail = rows.filter(p => p.email), without = rows.filter(p => !p.email);
   $("c-to").textContent = `${withEmail.length} recipient${withEmail.length === 1 ? "" : "s"} with an email address` + (without.length ? `. ${without.length} selected prospect${without.length === 1 ? " has" : "s have"} no email and will be skipped: ${without.slice(0, 5).map(p => p.name).join(", ")}${without.length > 5 ? "…" : ""}` : ".");
-  const fill = (tpl, p) => String(tpl || "").replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (p[k] ?? ({ business: p.name, company: p.name })[k] ?? ""));
+  const fill = (tpl, p) => String(tpl || "").replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (p[k] ?? ({ business: p.name, company: p.name, first_name: (p.contact_name || "").split(" ")[0] })[k] ?? ""));
   if (rows.length === 1) { $("c-subject").value = fill(hm.template.subject, rows[0]); $("c-body").value = fill(hm.template.body, rows[0]); }
   else { $("c-subject").value = hm.template.subject || ""; $("c-body").value = hm.template.body || ""; }
   hm.composeSingle = rows.length === 1 ? rows[0] : null;
   $("c-to-field").hidden = rows.length !== 1;
   if (rows.length === 1) { $("c-to-input").value = rows[0].email || ""; $("c-send").disabled = false; $("c-to-note").textContent = rows[0].email ? "" : "No email on file yet. Type one here and it saves to this business."; }
-  $("c-note").textContent = rows.length === 1 ? `Filled in for ${rows[0].name}. Edit anything before sending.` : "Placeholders: {{business}}, {{city}}, {{category}}. Each recipient gets their own email.";
+  $("c-note").textContent = rows.length === 1 ? `Filled in for ${rows[0].name}. Edit anything before sending.` : "Placeholders: {{business}}, {{first_name}}, {{city}}, {{category}}. Each recipient gets their own email.";
   $("c-err").textContent = hm.template.has_resend_key ? "" : "No Resend API key saved yet. Add it under Email settings before sending.";
   $("c-log").hidden = true; $("c-log").innerHTML = "";
   $("c-send").disabled = !withEmail.length; $("c-send").dataset.armed = ""; $("c-send").textContent = "Send";
@@ -1344,6 +1351,7 @@ $("hm-settings").addEventListener("click", () => {
   $("s-whsec").value = ""; $("s-whsec").placeholder = t.has_webhook_secret ? "Saved. Leave blank to keep it." : "whsec_…";
   $("s-gkey").value = ""; $("s-gkey").placeholder = t.has_places_key ? "Saved. Leave blank to keep it." : "AIza…";
   $("s-hunter").value = ""; $("s-hunter").placeholder = t.has_hunter_key ? "Saved. Leave blank to keep it." : "Paste to find emails Google and the website don’t show";
+  $("s-apollo").value = ""; $("s-apollo").placeholder = t.has_apollo_key ? "Saved. Leave blank to keep it." : "Paste to find owners and purchasing contacts by name";
   $("s-err").textContent = ""; openModal("m-settings");
 });
 $("s-save").addEventListener("click", async () => {
@@ -1352,6 +1360,7 @@ $("s-save").addEventListener("click", async () => {
   if ($("s-whsec").value.trim()) values.resend_webhook_secret = $("s-whsec").value.trim();
   if ($("s-gkey").value.trim()) { values.google_places_key = $("s-gkey").value.trim(); hm.template.has_places_key = true; }
   if ($("s-hunter").value.trim()) { values.hunter_api_key = $("s-hunter").value.trim(); hm.template.has_hunter_key = true; }
+  if ($("s-apollo").value.trim()) { values.apollo_api_key = $("s-apollo").value.trim(); hm.template.has_apollo_key = true; }
   try { await api("save_template", { values }); Object.assign(hm.template, { from: values.from_email, reply_to: values.reply_to, attachment_url: values.attachment_url, attachment_name: values.attachment_name }); if (values.resend_api_key) hm.template.has_resend_key = true; closeModal("m-settings"); } catch (e) { $("s-err").textContent = e.message; }
 });
 
@@ -1500,7 +1509,7 @@ setInterval(() => { if (document.body.classList.contains("admin") && session) { 
 
 /* ---- find contacts (phone, website, email) ---- */
 $("hm-enrich").addEventListener("click", async () => {
-  const pool = (hm.selected.size ? [...hm.selected] : filtered().map(p => p.id)).filter(id => { const p = hm.prospects.find(x => x.id === id); return p && (!p.email || !p.phone || !p.website); });
+  const pool = (hm.selected.size ? [...hm.selected] : filtered().map(p => p.id)).filter(id => { const p = hm.prospects.find(x => x.id === id); return p && (!p.email || !p.phone || !p.website || (hm.template.has_apollo_key && p.website && !p.contact_name)); });
   if (!hm.template.has_hunter_key && pool.length > 20 && !sessionStorage.getItem("hunter_hint")) { sessionStorage.setItem("hunter_hint", "1"); if (!confirm("Tip: websites often hide their email behind a form. Adding a free Hunter.io key under Email settings roughly doubles the emails found. Continue without it for now?")) return; }
   if (!pool.length) { alert("Everything shown already has an email, phone and website."); return; }
   if (!hm.template.has_places_key) { if (!confirm("No Google Places key is saved, so phones and websites can’t be pulled from Google; only prospects that already have a website will be scanned for an email. Continue anyway?")) return; }
@@ -1511,7 +1520,7 @@ $("hm-enrich").addEventListener("click", async () => {
     btn.textContent = `Finding… ${done}/${pool.length}`;
     try {
       const r = await api("enrich", { ids: pool.slice(i, i + 3) });
-      r.results.forEach(x => { const p = hm.prospects.find(q => q.id === x.id); if (!p) return; if (x.email) { p.email = x.email; emails++; } if (x.phone) { p.phone = x.phone; phones++; } if (x.website) p.website = x.website; if (x.notes) p.notes = x.notes; });
+      r.results.forEach(x => { const p = hm.prospects.find(q => q.id === x.id); if (!p) return; if (x.email) { p.email = x.email; emails++; } if (x.phone) { p.phone = x.phone; phones++; } if (x.website) p.website = x.website; if (x.notes) p.notes = x.notes; if (x.contact_name) { p.contact_name = x.contact_name; p.contact_title = x.contact_title; p.contact_phone = x.contact_phone; p.linkedin = x.linkedin; p.employees = x.employees; } });
       const gerr = r.results.find(x => x.google_error);
       if (gerr && i === 0) { alert("Google refused the lookup: " + gerr.google_error + "\n\nUsually this means \"Places API (New)\" isn’t enabled on the key yet. Enable it at console.cloud.google.com → APIs & Services → Library, then run Find contacts again. Website scans still ran for prospects that already have a website."); }
     } catch (e) { failed += 3; if (failed > 15) { alert("Too many lookups failed in a row; stopping. Run Find contacts again later to pick up where it left off."); break; } }
@@ -1638,6 +1647,7 @@ $("hm-discover").addEventListener("click", () => {
   const hasArea = !!hm.area; $("dv-where-area").disabled = !hasArea; $("dv-area-hint").textContent = hasArea ? "" : "(draw one first with the ▭ button on the map)";
   if (hasArea) $("dv-where-area").checked = true; else document.querySelector('input[name="dv-where"][value="radius"]').checked = true;
   if (!hm.template.has_places_key) $("dv-err").textContent = "No Google Places key saved. Add it under Email settings first.";
+  $("dv-src-apollo").disabled = !hm.template.has_apollo_key; $("dv-apollo-hint").textContent = hm.template.has_apollo_key ? "" : "(add an Apollo key in Email settings)";
   openModal("m-discover");
 });
 $("dv-go").addEventListener("click", async () => {
@@ -1647,7 +1657,15 @@ $("dv-go").addEventListener("click", async () => {
   const useArea = document.querySelector('input[name="dv-where"]:checked').value === "area" && hm.area;
   if (useArea) payload.bounds = { north: hm.area.getNorth(), south: hm.area.getSouth(), east: hm.area.getEast(), west: hm.area.getWest() };
   else payload.radius_mi = +$("dv-radius").value;
+  const src = document.querySelector('input[name="dv-src"]:checked').value;
   try {
+    if (src === "apollo") {
+      const size = $("dv-size").value; if (size) payload.sizes = [size];
+      payload.location = "Atlanta, Georgia, United States"; payload.pages = Math.min(3, Math.ceil(+$("dv-pages").value / 2));
+      $("dv-err").textContent = "Searching Apollo, then placing each company on the map…";
+      const r = await api("apollo_discover", payload);
+      $("dv-err").textContent = `Apollo found ${r.found}, placed ${r.placed} on the map, added ${r.inserted} new.`; await loadProspects(); btn.disabled = false; return;
+    }
     const r = await api("discover", payload);
     if (r.google_error) { $("dv-err").textContent = "Google: " + r.google_error; }
     else { $("dv-err").textContent = `Found ${r.found}, added ${r.inserted} new (the rest were already on the map).`; await loadProspects(); }
