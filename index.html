@@ -485,6 +485,7 @@
     <span class="grow"></span>
     <button class="btn primary" type="button" id="hm-discover" style="padding:9px 14px;font-size:14px">Find businesses</button>
     <button class="btn ghost" type="button" id="hm-enrich">Find contacts</button>
+    <button class="btn ghost" type="button" id="hm-auto">Auto-find <span id="auto-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9AA3AD;margin-left:4px"></span></button>
     <button class="btn ghost" type="button" id="hm-folder-new">Create folder</button>
     <select id="hm-folder-open" class="btn ghost" style="padding:9px 12px;font-size:14px;max-width:220px"><option value="">Open folder…</option></select>
     <button class="btn ghost" type="button" id="hm-add">Add prospect</button>
@@ -567,6 +568,29 @@
   <button type="button" data-act="contacted">Mark contacted</button>
   <button type="button" data-act="skip">Skip</button>
   <button type="button" data-act="delete" class="danger">Delete</button>
+</div>
+
+<div class="modal" id="m-auto" role="dialog" aria-modal="true">
+  <div class="box wide">
+    <h3>Auto-find contacts</h3>
+    <p class="note">Runs in the background every minute, even when you’re not on the page. It works through businesses in the categories you tick, three at a time, finding phone, website, email and the decision-maker. Each business is handled once; failures are retried later. Categories you leave unticked stay manual.</p>
+    <p class="err" id="au-err"></p>
+    <label style="font-size:15px;font-weight:700;display:flex;align-items:center;gap:10px;margin-bottom:12px"><input type="checkbox" id="au-enabled" style="width:18px;height:18px"> Auto-find is on</label>
+    <div class="row">
+      <div class="field"><label>Sources to use in auto</label>
+        <label style="font-weight:400;font-size:14px"><input type="checkbox" id="au-hunter" checked> Hunter (uses Hunter credits)</label>
+        <label style="font-weight:400;font-size:14px"><input type="checkbox" id="au-apollo" checked> Apollo decision-maker (uses Apollo credits)</label>
+        <span class="note">Google lookups and the website scan always run.</span>
+      </div>
+      <div class="field"><label for="au-cap">Daily cap (businesses per day)</label><input id="au-cap" type="number" min="10" max="2000" value="300"><span class="note">Stops for the day when reached. 300 ≈ about $6 of Google and up to 300 Hunter/Apollo lookups.</span></div>
+    </div>
+    <div class="field"><label>Categories on auto</label>
+      <div style="display:flex;gap:8px;margin-bottom:6px"><button class="link" type="button" id="au-all" style="background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--ink);font-size:13px">All</button><button class="link" type="button" id="au-none" style="background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--ink);font-size:13px">None</button></div>
+      <div id="au-cats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px 12px;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:10px"></div>
+    </div>
+    <p class="note" id="au-status"></p>
+    <div class="actions"><label style="font-size:13.5px;margin-right:auto"><input type="checkbox" id="au-requeue"> Also retry ones that previously found nothing</label><button class="btn ghost" type="button" data-close="m-auto">Cancel</button><button class="btn primary" type="button" id="au-save">Save</button></div>
+  </div>
 </div>
 
 <div class="modal" id="m-folder" role="dialog" aria-modal="true">
@@ -1512,8 +1536,7 @@ $("hm-enrich").addEventListener("click", async () => {
   const pool = (hm.selected.size ? [...hm.selected] : filtered().map(p => p.id)).filter(id => { const p = hm.prospects.find(x => x.id === id); return p && (!p.email || !p.phone || !p.website || (hm.template.has_apollo_key && p.website && !p.contact_name)); });
   if (!hm.template.has_hunter_key && pool.length > 20 && !sessionStorage.getItem("hunter_hint")) { sessionStorage.setItem("hunter_hint", "1"); if (!confirm("Tip: websites often hide their email behind a form. Adding a free Hunter.io key under Email settings roughly doubles the emails found. Continue without it for now?")) return; }
   if (!pool.length) { alert("Everything shown already has an email, phone and website."); return; }
-  if (!hm.template.has_places_key) { if (!confirm("No Google Places key is saved, so phones and websites can’t be pulled from Google; only prospects that already have a website will be scanned for an email. Continue anyway?")) return; }
-  if (!confirm(`Look up contacts for ${pool.length} prospect${pool.length === 1 ? "" : "s"}? This runs in small batches and can take a few minutes.`)) return;
+  if (pool.length > 50 && !confirm(`Look up contacts for ${pool.length} businesses now? For big batches, Auto-find does this in the background without you waiting.`)) return;
   const btn = $("hm-enrich"); btn.disabled = true;
   let done = 0, emails = 0, phones = 0, failed = 0;
   for (let i = 0; i < pool.length; i += 3) {
@@ -1522,8 +1545,8 @@ $("hm-enrich").addEventListener("click", async () => {
       const r = await api("enrich", { ids: pool.slice(i, i + 3) });
       r.results.forEach(x => { const p = hm.prospects.find(q => q.id === x.id); if (!p) return; if (x.email) { p.email = x.email; emails++; } if (x.phone) { p.phone = x.phone; phones++; } if (x.website) p.website = x.website; if (x.notes) p.notes = x.notes; if (x.contact_name) { p.contact_name = x.contact_name; p.contact_title = x.contact_title; p.contact_phone = x.contact_phone; p.linkedin = x.linkedin; p.employees = x.employees; } });
       const gerr = r.results.find(x => x.google_error);
-      if (gerr && i === 0) { alert("Google refused the lookup: " + gerr.google_error + "\n\nUsually this means \"Places API (New)\" isn’t enabled on the key yet. Enable it at console.cloud.google.com → APIs & Services → Library, then run Find contacts again. Website scans still ran for prospects that already have a website."); }
-    } catch (e) { failed += 3; if (failed > 15) { alert("Too many lookups failed in a row; stopping. Run Find contacts again later to pick up where it left off."); break; } }
+      if (gerr && i === 0) { $("hm-stats").textContent = "Google lookups are failing (" + gerr.google_error.slice(0, 80) + "); website scans still run."; }
+    } catch (e) { failed += 3; if (failed > 15) { $("hm-stats").textContent = "Lookups keep failing; stopped. Auto-find will retry them in the background."; break; } }
     done = Math.min(pool.length, i + 3); renderHitmap();
   }
   btn.disabled = false; btn.textContent = "Find contacts";
@@ -1550,6 +1573,41 @@ function smsLink(p) {
   return `sms:${num}${sep}body=${encodeURIComponent(body)}`;
 }
 
+
+
+/* ---- auto-find contacts (background job settings) ---- */
+async function openAuto() {
+  $("au-err").textContent = ""; $("au-status").textContent = "Loading…"; openModal("m-auto");
+  try {
+    const d = await api("auto_status"); const cfg = d.config || {};
+    $("au-enabled").checked = !!cfg.enabled; $("au-hunter").checked = cfg.use_hunter !== false; $("au-apollo").checked = cfg.use_apollo !== false; $("au-cap").value = cfg.daily_cap || 300;
+    const byCat = {}; (d.counts || []).forEach(r => { byCat[r.category] = byCat[r.category] || { pending: 0, done: 0, no_email: 0, no_site: 0, skipped: 0 }; byCat[r.category][r.status] = +r.n; });
+    const cats = Object.keys(byCat).sort((a, b) => (byCat[b].pending || 0) - (byCat[a].pending || 0));
+    const on = new Set((cfg.categories || []).map(c => c.toLowerCase()));
+    $("au-cats").innerHTML = cats.map(c => { const k = byCat[c]; const total = Object.values(k).reduce((x, y) => x + y, 0); return `<label style="font-weight:400;font-size:13.5px;display:flex;gap:8px;align-items:flex-start"><input type="checkbox" value="${esc(c)}" ${on.has(c.toLowerCase()) ? "checked" : ""} style="margin-top:3px"><span><b>${esc(c)}</b><br><span style="color:var(--mute);font-size:12px">${k.pending || 0} waiting · ${k.done || 0} have email · ${(k.no_email || 0) + (k.no_site || 0)} nothing found · ${total} total</span></span></label>`; }).join("") || "<span class='note'>No categories yet. Pull some businesses first.</span>";
+    const pending = (d.counts || []).filter(r => r.status === "pending").reduce((a, r) => a + +r.n, 0);
+    $("au-status").textContent = `${pending} businesses waiting overall · ${d.today} processed today${cfg.enabled ? " · running" : " · paused"}`;
+    $("auto-dot").style.background = cfg.enabled ? "#2F9E62" : "#9AA3AD";
+  } catch (e) { $("au-err").textContent = e.message; }
+}
+$("hm-auto").addEventListener("click", openAuto);
+$("au-all").addEventListener("click", () => $("au-cats").querySelectorAll("input").forEach(i => i.checked = true));
+$("au-none").addEventListener("click", () => $("au-cats").querySelectorAll("input").forEach(i => i.checked = false));
+$("au-save").addEventListener("click", async () => {
+  const categories = [...$("au-cats").querySelectorAll("input:checked")].map(i => i.value);
+  if ($("au-enabled").checked && !categories.length) { $("au-err").textContent = "Tick at least one category, or turn auto off."; return; }
+  $("au-save").disabled = true;
+  try {
+    const r = await api("auto_save", { enabled: $("au-enabled").checked, categories, use_hunter: $("au-hunter").checked, use_apollo: $("au-apollo").checked, daily_cap: +$("au-cap").value, requeue: $("au-requeue").checked });
+    $("auto-dot").style.background = r.config.enabled ? "#2F9E62" : "#9AA3AD";
+    $("au-status").textContent = r.config.enabled ? `Saved. Running on ${categories.length} categor${categories.length === 1 ? "y" : "ies"}; the map updates as results come in.` : "Saved. Auto-find is paused.";
+    setTimeout(() => closeModal("m-auto"), 900);
+  } catch (e) { $("au-err").textContent = e.message; }
+  $("au-save").disabled = false;
+});
+/* keep the map fresh while the background job works */
+setInterval(() => { if (document.body.classList.contains("admin") && session && !hm.drawMode) api("list").then(d => { const prev = hm.prospects; hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null })); if (JSON.stringify(prev.map(p => [p.id, p.email, p.phone, p.contact_name])) !== JSON.stringify(hm.prospects.map(p => [p.id, p.email, p.phone, p.contact_name]))) { fillFilters(); renderHitmap(); } }).catch(() => {}); }, 90000);
+api("auto_status").then(d => { $("auto-dot").style.background = (d.config || {}).enabled ? "#2F9E62" : "#9AA3AD"; }).catch(() => {});
 
 /* ---- folders ---- */
 hm.folders = []; hm.folderItems = []; hm.folder = null;
