@@ -1157,7 +1157,7 @@ function renderHitmap() {
       <input type="checkbox" ${hm.selected.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}">
       <div><div class="nm">${esc(p.name)}</div>
         <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.phone ? " · " + esc(p.phone) : ""}<br>${p.email ? esc(p.email) + ((p.notes || "").match(/Email source: ([^\n]+)/) ? ` <span style="opacity:.7">(${esc((p.notes.match(/Email source: ([^\n]+)/) || [])[1])})</span>` : "") : (p.website ? '<span class="noemail">no email found on site</span>' : '<span class="noemail">no website, no email</span>')}</div></div>
-      <div class="right"><span class="pill ${p.status}">${p.status}</span><br>${p.dist != null ? p.dist.toFixed(1) + " mi" : ""}</div>
+      <div class="right"><span class="pill ${p.status}">${p.status}</span><br>${(() => { const m = hm.messages.find(x => x.prospect_id === p.id && x.direction === "out"); if (!m) return p.dist != null ? p.dist.toFixed(1) + " mi" : ""; const bad = /bounced|complained|failed/.test(m.status); return `<span title="${m.status}" style="color:${bad ? "#B42318" : "#1B6B3F"};font-weight:700">${bad ? "✗" : "✓"} ${m.status}</span>`; })()}</div>
     </div>`).join("") || `<div class="empty" style="border:0">No prospects match these filters.</div>`;
   // markers
   hm.layer.clearLayers(); hm.markers = {};
@@ -1262,7 +1262,7 @@ function openComposer() {
   $("c-note").textContent = rows.length === 1 ? `Filled in for ${rows[0].name}. Edit anything before sending.` : "Placeholders: {{business}}, {{city}}, {{category}}. Each recipient gets their own email.";
   $("c-err").textContent = hm.template.has_resend_key ? "" : "No Resend API key saved yet. Add it under Email settings before sending.";
   $("c-log").hidden = true; $("c-log").innerHTML = "";
-  $("c-send").disabled = !withEmail.length;
+  $("c-send").disabled = !withEmail.length; $("c-send").dataset.armed = ""; $("c-send").textContent = "Send";
   openModal("m-compose");
 }
 $("c-save").addEventListener("click", async () => {
@@ -1270,6 +1270,7 @@ $("c-save").addEventListener("click", async () => {
   try { await api("save_template", { values: { email_subject: $("c-subject").value, email_body: $("c-body").value } }); hm.template.subject = $("c-subject").value; hm.template.body = $("c-body").value; $("c-err").textContent = "Template saved."; } catch (e) { $("c-err").textContent = e.message; }
 });
 $("c-send").addEventListener("click", async () => {
+  const btn = $("c-send"); $("c-err").textContent = "";
   if (hm.composeSingle) {
     const to = $("c-to-input").value.trim();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { $("c-err").textContent = "Enter a valid email address in the To field."; return; }
@@ -1279,15 +1280,21 @@ $("c-send").addEventListener("click", async () => {
   }
   const ids = [...hm.selected].filter(id => (hm.prospects.find(p => p.id === id) || {}).email);
   if (!ids.length) { $("c-err").textContent = "None of the selected prospects has an email address."; return; }
-  if (!confirm(`Send to ${ids.length} recipient${ids.length === 1 ? "" : "s"} now?`)) return;
-  $("c-send").disabled = true; $("c-err").textContent = ""; $("c-log").hidden = false; $("c-log").innerHTML = "Sending…";
+  if (!hm.template.has_resend_key) { $("c-err").textContent = "No Resend API key saved. Add it under Email settings."; return; }
+  // two-step confirm inside the window instead of a browser popup
+  if (btn.dataset.armed !== "1") { btn.dataset.armed = "1"; btn.textContent = `Confirm: send to ${ids.length}`; setTimeout(() => { if (btn.dataset.armed === "1") { btn.dataset.armed = ""; btn.textContent = "Send"; } }, 8000); return; }
+  btn.dataset.armed = ""; btn.disabled = true; btn.textContent = "Sending…";
+  const log = $("c-log"); log.hidden = false;
+  log.innerHTML = ids.map(id => `<div id="log-${id}">⏳ ${esc((hm.prospects.find(p => p.id === id) || {}).name || "")}</div>`).join("");
   try {
     const r = await api("send", { ids, subject: $("c-subject").value, body: $("c-body").value, attach: $("c-attach").checked });
-    $("c-log").innerHTML = r.results.map(x => `<div class="${x.ok ? "ok" : "bad"}">${x.ok ? "Sent" : "Failed"}: ${esc(x.name)}${x.error ? " — " + esc(x.error) : ""}</div>`).join("");
-    r.results.forEach(x => { const p = hm.prospects.find(q => q.id === x.id); if (p && x.ok) { p.status = "contacted"; p.contacted_at = p.contacted_at || new Date().toISOString(); p.last_sent_at = new Date().toISOString(); } });
-    hm.selected.clear(); renderHitmap();
-  } catch (e) { $("c-err").textContent = e.message; }
-  $("c-send").disabled = false;
+    r.results.forEach(x => { const row = $("log-" + x.id); if (row) { row.className = x.ok ? "ok" : "bad"; row.textContent = (x.ok ? "✓ Sent to " : "✗ Failed: ") + x.name + (x.error ? " — " + x.error : ""); }
+      const p = hm.prospects.find(q => q.id === x.id); if (p && x.ok) { p.status = "contacted"; p.contacted_at = p.contacted_at || new Date().toISOString(); p.last_sent_at = new Date().toISOString(); } });
+    const okN = r.results.filter(x => x.ok).length, badN = r.results.length - okN;
+    btn.textContent = badN ? `${okN} sent, ${badN} failed` : `✓ ${okN} sent`;
+    hm.selected.clear(); renderHitmap(); api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
+    setTimeout(() => { btn.textContent = "Send"; btn.disabled = false; }, 4000);
+  } catch (e) { $("c-err").textContent = "✗ " + e.message; log.innerHTML = ""; btn.textContent = "Send"; btn.disabled = false; }
 });
 
 /* ---- settings ---- */
@@ -1392,7 +1399,7 @@ function renderInbox() {
       <div><div class="nm">${esc(t.name)}${t.matched ? "" : ' <span class="pill">not linked</span>'}</div>
         <div class="sub">${esc(t.last.subject || "")}</div>
         <div class="snip">${t.last.direction === "in" ? "Reply: " : "You: "}${esc((t.last.text_body || "").slice(0, 90))}</div></div>
-      <div class="when">${ago(t.last.created_at)}<br><span class="pill ${t.last.direction === "in" ? "received" : t.last.status}">${t.last.direction === "in" ? "replied" : t.last.status}</span></div>
+      <div class="when">${ago(t.last.created_at)}<br><span class="pill ${t.last.direction === "in" ? "received" : t.last.status}">${t.last.direction === "in" ? "↩ replied" : (/bounced|complained|failed/.test(t.last.status) ? "✗ " : "✓ ") + t.last.status}</span></div>
     </div>`).join("") || `<div class="empty" style="border:0">${hm.messages.length ? "Nothing matches." : "No email activity yet. Sent emails and replies to patrick@atlantawholesaleled.com will show up here."}</div>`;
   if (hm.thread) { const t = threads.find(x => x.key === hm.thread) || buildThreads().find(x => x.key === hm.thread); if (t) renderThread(t); }
 }
