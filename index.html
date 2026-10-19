@@ -269,6 +269,12 @@
   .msg .bd { white-space: pre-wrap; font-size: 14px; margin-top: 8px; line-height: 1.45; max-height: 320px; overflow: auto; }
   .msg .bd.html iframe { width: 100%; height: 320px; border: 0; background: #fff; border-radius: 6px; }
   .reply-box textarea { min-height: 120px; }
+  .pin.done { background: #2F9E62; }
+  .pr.done .nm { text-decoration: line-through; opacity: .65; }
+  .pr .donebtn { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); background: var(--paper); cursor: pointer; display: grid; place-items: center; color: transparent; font-size: 14px; font-weight: 800; }
+  .pr .donebtn[aria-pressed="true"] { background: #2F9E62; border-color: #2F9E62; color: #fff; }
+  .mf-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); }
+  .mf-row b { font-size: 14px; } .mf-row span { font-size: 12.5px; color: var(--mute); }
   .stchips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
   .stchips .pill { cursor: pointer; opacity: .45; border-width: 1px; }
   .stchips .pill[aria-pressed="true"] { opacity: 1; box-shadow: 0 0 0 2px var(--ink); }
@@ -479,6 +485,8 @@
     <span class="grow"></span>
     <button class="btn primary" type="button" id="hm-discover" style="padding:9px 14px;font-size:14px">Find businesses</button>
     <button class="btn ghost" type="button" id="hm-enrich">Find contacts</button>
+    <button class="btn ghost" type="button" id="hm-folder-new">Create folder</button>
+    <select id="hm-folder-open" class="btn ghost" style="padding:9px 12px;font-size:14px;max-width:220px"><option value="">Open folder…</option></select>
     <button class="btn ghost" type="button" id="hm-add">Add prospect</button>
     <button class="btn ghost" type="button" id="hm-import">Import CSV</button>
     <button class="btn ghost" type="button" id="hm-settings">Email settings</button>
@@ -512,12 +520,14 @@
           <label><input type="checkbox" id="f-noemail"> Missing email</label>
         </div>
       </div>
+      <div class="area-note" id="folder-note" hidden style="background:var(--ink);color:var(--paper)"><span id="folder-text"></span><span class="grow"></span><button type="button" id="folder-select-all">Select all</button><button type="button" id="folder-rename">Rename</button><button type="button" id="folder-delete">Delete folder</button><button type="button" id="folder-close">Close</button></div>
       <div class="area-note" id="area-note" hidden><span id="area-text"></span><span class="grow"></span><button type="button" id="area-clear">Clear area</button></div>
       <div class="hm-sel">
         <label><input type="checkbox" id="sel-all"> Select all shown</label>
         <span id="sel-count">0 selected</span>
         <span class="grow"></span>
         <button class="btn primary" type="button" id="act-email" style="padding:7px 12px;font-size:13.5px" disabled>Send email</button>
+        <button class="link" type="button" id="act-folder">Add to folder</button>
         <button class="link" type="button" id="act-contacted">Mark contacted</button>
         <button class="link" type="button" id="act-skip">Skip</button>
         <button class="link" type="button" id="act-delete">Delete</button>
@@ -551,11 +561,23 @@
   <div class="hd" id="ctx-name"></div>
   <button type="button" data-act="email">Email this business</button>
   <button type="button" data-act="text">Text this business</button>
+  <button type="button" data-act="folder">Add to folder…</button>
   <button type="button" data-act="details">Details</button>
   <button type="button" data-act="map">Show on map</button>
   <button type="button" data-act="contacted">Mark contacted</button>
   <button type="button" data-act="skip">Skip</button>
   <button type="button" data-act="delete" class="danger">Delete</button>
+</div>
+
+<div class="modal" id="m-folder" role="dialog" aria-modal="true">
+  <div class="box">
+    <h3 id="mf-title">Add to folder</h3>
+    <p class="note" id="mf-sub"></p>
+    <p class="err" id="mf-err"></p>
+    <div id="mf-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+    <div class="field"><label for="mf-new">Or create a new folder</label><div style="display:flex;gap:8px"><input id="mf-new" placeholder="Folder name, e.g. Week 1 calls"><button class="btn primary" type="button" id="mf-create" style="white-space:nowrap">Create</button></div></div>
+    <div class="actions"><button class="btn ghost" type="button" data-close="m-folder">Close</button></div>
+  </div>
 </div>
 
 <div class="modal" id="m-discover" role="dialog" aria-modal="true">
@@ -1095,6 +1117,7 @@ async function loadProspects() {
     hm.template = d.template; hm.loaded = true;
     fillFilters(); renderHitmap();
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
+    loadFolders();
   } catch (e) { $("hm-stats").textContent = e.message; }
 }
 function fillFilters() {
@@ -1110,7 +1133,8 @@ function filtered() {
     (!q || [p.name, p.address, p.city, p.category, p.email, p.notes].join(" ").toLowerCase().includes(q)) &&
     (!r || (p.dist != null && p.dist <= r)) && (!hm.statuses.size || hm.statuses.has(p.status)) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat) &&
     (!$("f-hasemail").checked || !!p.email) && (!$("f-hasphone").checked || !!p.phone) && (!$("f-noemail").checked || !p.email) &&
-    (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))));
+    (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))) &&
+    (!hm.folder || hm.folderItems.some(it => it.folder_id === hm.folder && it.prospect_id === p.id)));
 }
 ["f-q", "f-radius", "f-city", "f-county", "f-cat", "f-hasemail", "f-hasphone", "f-noemail"].forEach(id => $(id).addEventListener("input", renderHitmap));
 $("f-hasemail").addEventListener("change", e => { if (e.target.checked) $("f-noemail").checked = false; });
@@ -1153,8 +1177,8 @@ function renderHitmap() {
   updateSourceLine(list.length);
   // list
   $("hm-list").innerHTML = list.map(p => `
-    <div class="pr${hm.active === p.id ? " active" : ""}" data-id="${p.id}">
-      <input type="checkbox" ${hm.selected.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}">
+    <div class="pr${hm.active === p.id ? " active" : ""}${isDone(p.id) ? " done" : ""}" data-id="${p.id}">
+      ${hm.folder ? `<button type="button" class="donebtn" aria-pressed="${isDone(p.id)}" title="Mark done">✓</button>` : `<input type="checkbox" ${hm.selected.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}">`}
       <div><div class="nm">${esc(p.name)}</div>
         <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.phone ? " · " + esc(p.phone) : ""}<br>${p.email ? esc(p.email) + ((p.notes || "").match(/Email source: ([^\n]+)/) ? ` <span style="opacity:.7">(${esc((p.notes.match(/Email source: ([^\n]+)/) || [])[1])})</span>` : "") : (p.website ? '<span class="noemail">no email found on site</span>' : '<span class="noemail">no website, no email</span>')}</div></div>
       <div class="right"><span class="pill ${p.status}">${p.status}</span><br>${(() => { const m = hm.messages.find(x => x.prospect_id === p.id && x.direction === "out"); if (!m) return p.dist != null ? p.dist.toFixed(1) + " mi" : ""; const bad = /bounced|complained|failed/.test(m.status); return `<span title="${m.status}" style="color:${bad ? "#B42318" : "#1B6B3F"};font-weight:700">${bad ? "✗" : "✓"} ${m.status}</span>`; })()}</div>
@@ -1163,8 +1187,9 @@ function renderHitmap() {
   hm.layer.clearLayers(); hm.markers = {};
   list.forEach(p => {
     if (!p.lat || !p.lng) return;
-    const check = p.status === "contacted" || p.status === "replied" || p.status === "customer" ? '<svg viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3.5"/></svg>' : "";
-    const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: `<div class="pin ${p.status}">${check}</div>`, iconSize: [14, 14], iconAnchor: [7, 7] }) });
+    const done = isDone(p.id);
+    const check = done || p.status === "contacted" || p.status === "replied" || p.status === "customer" ? '<svg viewBox="0 0 12 12"><path d="M2 6.5l2.5 2.5L10 3.5"/></svg>' : "";
+    const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: "", html: `<div class="pin ${done ? "done" : p.status}">${check}</div>`, iconSize: [14, 14], iconAnchor: [7, 7] }) });
     m.bindPopup(`<b>${esc(p.name)}</b><br>${esc(p.address || "")}${p.city ? ", " + esc(p.city) : ""}<br>${p.phone ? esc(p.phone) + "<br>" : ""}${p.email ? esc(p.email) + "<br>" : ""}<span class="pill ${p.status}">${p.status}</span><br><span class="plink" data-open="${p.id}">Details</span>${p.status !== "contacted" ? `<span class="plink" data-contacted="${p.id}">Mark contacted</span>` : ""}`);
     m.on("click", () => { hm.active = p.id; });
     m.on("contextmenu", ev => { L.DomEvent.stop(ev); openCtx(p.id, ev.originalEvent.clientX, ev.originalEvent.clientY); });
@@ -1188,6 +1213,7 @@ $("hm-list").addEventListener("click", e => {
   const row = e.target.closest(".pr"); if (!row) return;
   const id = row.dataset.id;
   if (e.target.type === "checkbox") { e.target.checked ? hm.selected.add(id) : hm.selected.delete(id); updateSel(); return; }
+  if (e.target.classList.contains("donebtn")) { toggleDone(id, e.target.getAttribute("aria-pressed") !== "true"); return; }
   focusProspect(id);
 });
 $("sel-all").addEventListener("change", e => { const shown = filtered(); shown.forEach(p => e.target.checked ? hm.selected.add(p.id) : hm.selected.delete(p.id)); renderHitmap(); });
@@ -1212,6 +1238,7 @@ function openDetail(id) {
     <button class="close" type="button" id="d-close" aria-label="Close">×</button>
     <h4>${esc(p.name)}</h4>
     <span class="pill ${p.status}">${p.status}</span>${p.contacted_at ? ` <span class="note" style="font-size:12px;color:var(--mute)">contacted ${new Date(p.contacted_at).toLocaleDateString()}</span>` : ""}
+    ${(() => { const fs = hm.folderItems.filter(i => i.prospect_id === id).map(i => { const f = hm.folders.find(x => x.id === i.folder_id); return f ? `<span class="pill ${i.done ? "contacted" : ""}">${i.done ? "✓ " : ""}${esc(f.name)}</span>` : ""; }).join(" "); return fs ? `<div style="margin:6px 0 2px;display:flex;gap:4px;flex-wrap:wrap">${fs}</div>` : ""; })()}
     <div class="f"><label>Status</label><select id="d-status">${STATUSES.map(s => `<option ${p.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div>
     <div class="f"><label>Email</label><input id="d-email" value="${esc(p.email || "")}" placeholder="Add an email to include in sends"></div>
     <div class="f"><label>Phone</label><input id="d-phone" value="${esc(p.phone || "")}"></div>
@@ -1514,6 +1541,63 @@ function smsLink(p) {
   return `sms:${num}${sep}body=${encodeURIComponent(body)}`;
 }
 
+
+/* ---- folders ---- */
+hm.folders = []; hm.folderItems = []; hm.folder = null;
+function isDone(pid) { return hm.folderItems.some(it => it.prospect_id === pid && it.done); }
+async function loadFolders() {
+  try { const d = await api("folders"); hm.folders = d.folders; hm.folderItems = d.items; renderFolderSelect(); renderHitmap(); } catch (e) {}
+}
+function renderFolderSelect() {
+  const sel = $("hm-folder-open"); const cur = hm.folder || "";
+  sel.innerHTML = `<option value="">Open folder…</option>` + hm.folders.map(f => { const items = hm.folderItems.filter(i => i.folder_id === f.id); return `<option value="${f.id}">${esc(f.name)} (${items.filter(i => i.done).length}/${items.length})</option>`; }).join("");
+  sel.value = cur;
+  const note = $("folder-note"); note.hidden = !hm.folder;
+  if (hm.folder) { const f = hm.folders.find(x => x.id === hm.folder); const items = hm.folderItems.filter(i => i.folder_id === hm.folder); $("folder-text").textContent = `Folder: ${f ? f.name : ""} · ${items.filter(i => i.done).length} of ${items.length} done`; }
+}
+function openFolder(id) { hm.folder = id || null; hm.selected.clear(); renderFolderSelect(); renderHitmap(); }
+$("hm-folder-open").addEventListener("change", e => openFolder(e.target.value));
+$("folder-close").addEventListener("click", () => openFolder(null));
+$("folder-select-all").addEventListener("click", () => { filtered().forEach(p => hm.selected.add(p.id)); updateSel(); openComposerHint(); });
+function openComposerHint() { const n = hm.selected.size; $("sel-count").textContent = `${n} selected`; $("act-email").disabled = n === 0; }
+$("folder-rename").addEventListener("click", () => { const f = hm.folders.find(x => x.id === hm.folder); if (!f) return; openFolderModal({ rename: f }); });
+$("folder-delete").addEventListener("click", async () => { const f = hm.folders.find(x => x.id === hm.folder); if (!f) return; if (!confirm(`Delete folder “${f.name}”? The businesses stay on the map.`)) return; try { await api("folder_delete", { folder_id: f.id }); hm.folder = null; await loadFolders(); } catch (e) { alert(e.message); } });
+async function toggleDone(pid, done) {
+  if (!hm.folder) return;
+  try { await api("folder_done", { folder_id: hm.folder, ids: [pid], done }); const it = hm.folderItems.find(i => i.folder_id === hm.folder && i.prospect_id === pid); if (it) { it.done = done; it.done_at = done ? new Date().toISOString() : null; } renderFolderSelect(); renderHitmap(); } catch (e) { alert(e.message); }
+}
+let folderTargets = [];
+function openFolderModal(opts = {}) {
+  const ids = opts.ids || [];
+  folderTargets = ids;
+  $("mf-err").textContent = ""; $("mf-new").value = "";
+  if (opts.rename) { $("mf-title").textContent = "Rename folder"; $("mf-sub").textContent = ""; $("mf-list").innerHTML = ""; $("mf-new").value = opts.rename.name; $("mf-create").textContent = "Save"; $("mf-create").dataset.rename = opts.rename.id; }
+  else {
+    $("mf-create").textContent = ids.length ? "Create and add" : "Create"; $("mf-create").dataset.rename = "";
+    $("mf-title").textContent = ids.length ? "Add to folder" : "Create folder";
+    $("mf-sub").textContent = ids.length === 1 ? (hm.prospects.find(p => p.id === ids[0]) || {}).name || "" : ids.length ? `${ids.length} businesses selected` : "";
+    $("mf-list").innerHTML = hm.folders.map(f => { const items = hm.folderItems.filter(i => i.folder_id === f.id); const already = ids.length && ids.every(id => items.some(i => i.prospect_id === id)); return `<div class="mf-row"><div><b>${esc(f.name)}</b><br><span>${items.filter(i => i.done).length} of ${items.length} done</span></div>${ids.length ? `<button class="btn ${already ? "ghost" : "primary"}" type="button" data-add="${f.id}" style="padding:6px 12px;font-size:13px" ${already ? "disabled" : ""}>${already ? "Added" : "Add"}</button>` : `<button class="btn ghost" type="button" data-openf="${f.id}" style="padding:6px 12px;font-size:13px">Open</button>`}</div>`; }).join("") || `<p class="note">No folders yet. Create one below.</p>`;
+  }
+  openModal("m-folder");
+}
+$("mf-list").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.add) { b.disabled = true; try { await api("folder_add", { folder_id: b.dataset.add, ids: folderTargets }); await loadFolders(); b.textContent = "Added"; b.className = "btn ghost"; } catch (err) { $("mf-err").textContent = err.message; b.disabled = false; } }
+  if (b.dataset.openf) { closeModal("m-folder"); openFolder(b.dataset.openf); }
+});
+$("mf-create").addEventListener("click", async () => {
+  const name = $("mf-new").value.trim(); if (!name) { $("mf-err").textContent = "Give the folder a name."; return; }
+  try {
+    if ($("mf-create").dataset.rename) { await api("folder_rename", { folder_id: $("mf-create").dataset.rename, name }); await loadFolders(); closeModal("m-folder"); return; }
+    const r = await api("folder_create", { name, ids: folderTargets });
+    await loadFolders(); closeModal("m-folder");
+    if (!folderTargets.length) openFolder(r.folder.id);
+  } catch (err) { $("mf-err").textContent = err.message; }
+});
+$("mf-new").addEventListener("keydown", e => { if (e.key === "Enter") $("mf-create").click(); });
+$("hm-folder-new").addEventListener("click", () => openFolderModal({ ids: hm.selected.size ? [...hm.selected] : [] }));
+$("act-folder").addEventListener("click", () => { if (hm.selected.size) openFolderModal({ ids: [...hm.selected] }); });
+
 /* ---- right-click menu ---- */
 const ctx = $("ctx"); let ctxId = null;
 function openCtx(id, x, y) {
@@ -1533,6 +1617,7 @@ ctx.addEventListener("click", e => {
   const id = ctxId; closeCtx();
   if (b.dataset.act === "email") { hm.selected = new Set([id]); updateSel(); openComposer(); }
   if (b.dataset.act === "text") { const p = hm.prospects.find(q => q.id === id); if (!p.phone) { alert("No phone number on file for " + p.name + "."); return; } window.location.href = smsLink(p); }
+  if (b.dataset.act === "folder") openFolderModal({ ids: hm.selected.size > 1 && hm.selected.has(id) ? [...hm.selected] : [id] });
   if (b.dataset.act === "details") openDetail(id);
   if (b.dataset.act === "map") focusProspect(id);
   if (b.dataset.act === "contacted") setStatus([id], "contacted");
