@@ -509,8 +509,8 @@
       </div>
       <div class="hm-filters">
         <input class="full" id="f-q" type="search" placeholder="Type a target: gas stations, dealerships, a company name…">
-        <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Quick pull (up to 60)</button><button class="btn dark" type="button" id="f-sweep" style="padding:6px 12px;font-size:13px">Sweep everything</button><select id="f-sweep-scope" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px"><option value="box">in the box I drew</option><option value="25">within 25 mi</option><option value="40" selected>within 40 mi</option><option value="60">within 60 mi</option><option value="ga">all of Georgia</option></select></div>
-        <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option></select>
+        <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Quick pull (up to 60)</button><button class="btn dark" type="button" id="f-sweep" style="padding:6px 12px;font-size:13px">Sweep everything</button><select id="f-sweep-scope" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px"><option value="box">in the box I drew</option><option value="25">within 25 mi</option><option value="40" selected>within 40 mi</option><option value="60">within 60 mi</option><option value="100">within 100 mi</option><option value="ga">all of Georgia</option></select></div>
+        <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option><option value="60">Within 60 mi</option><option value="100">Within 100 mi</option><option value="150">Within 150 mi</option></select>
         <div id="f-status" class="stchips" aria-label="Status filter"><button type="button" data-s="new" class="pill new" aria-pressed="false">new</button><button type="button" data-s="contacted" class="pill contacted" aria-pressed="false">contacted</button><button type="button" data-s="replied" class="pill replied" aria-pressed="false">replied</button><button type="button" data-s="customer" class="pill customer" aria-pressed="false">customer</button><button type="button" data-s="skip" class="pill skip" aria-pressed="false">skip</button></div>
         <select id="f-city"><option value="">All cities</option></select>
         <select id="f-county"><option value="">All counties</option></select>
@@ -521,6 +521,7 @@
           <label><input type="checkbox" id="f-noemail"> Missing email</label>
         </div>
       </div>
+      <div class="area-note" id="sweep-progress" hidden style="display:block;background:var(--paper-2);color:var(--ink);font-weight:500;font-size:13px"></div>
       <div class="area-note" id="folder-note" hidden style="background:var(--ink);color:var(--paper)"><span id="folder-text"></span><span class="grow"></span><button type="button" id="folder-select-all">Select all</button><button type="button" id="folder-rename">Rename</button><button type="button" id="folder-delete">Delete folder</button><button type="button" id="folder-close">Close</button></div>
       <div class="area-note" id="area-note" hidden><span id="area-text"></span><span class="grow"></span><button type="button" id="area-clear">Clear area</button></div>
       <div class="hm-sel">
@@ -1147,7 +1148,7 @@ async function loadProspects() {
     hm.template = d.template; hm.loaded = true;
     fillFilters(); renderHitmap();
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
-    loadFolders();
+    loadFolders(); pollSweeps();
   } catch (e) { $("hm-stats").textContent = e.message; }
 }
 function fillFilters() {
@@ -1199,6 +1200,7 @@ function setArea(bounds) {
   renderHitmap();
 }
 $("area-clear").addEventListener("click", () => setArea(null));
+document.addEventListener("click", async e => { const b = e.target.closest("[data-cancel]"); if (!b) return; try { await api("sweep_cancel", { sweep_id: b.dataset.cancel }); pollSweeps(); } catch (err) {} });
 
 function renderHitmap() {
   const list = filtered();
@@ -1738,7 +1740,7 @@ function gridFor(scope) {
   if (scope === "box") { if (!hm.area) return null; b = hm.area; }
   else if (scope === "ga") b = L.latLngBounds([30.35, -85.61], [35.0, -80.84]);
   else { const mi = +scope, dLat = mi / 69, dLng = mi / (69 * Math.cos(HQ.lat * Math.PI / 180)); b = L.latLngBounds([HQ.lat - dLat, HQ.lng - dLng], [HQ.lat + dLat, HQ.lng + dLng]); }
-  const cellMi = scope === "ga" ? 15 : Math.max(5, Math.min(10, (+scope || 20) / 4));
+  const cellMi = scope === "ga" ? 30 : Math.max(8, Math.min(25, (+scope || 20) / 3));
   const latStep = cellMi / 69, lngStep = cellMi / (69 * Math.cos(b.getCenter().lat * Math.PI / 180));
   const cells = [];
   for (let lat = b.getSouth(); lat < b.getNorth(); lat += latStep) for (let lng = b.getWest(); lng < b.getEast(); lng += lngStep)
@@ -1782,36 +1784,29 @@ $("f-sweep").addEventListener("click", async () => {
   const q = $("f-q").value.trim(); if (!q) return;
   const scope = $("f-sweep-scope").value;
   const cells = gridFor(scope);
-  if (!cells) { alert("Draw a box on the map first (▭ button), or pick a distance."); return; }
+  if (!cells) { $("hm-stats").textContent = "Draw a box on the map first (▭ button), or pick a distance."; return; }
   const phrases = phrasingsFor(q);
   const category = (phrases.length > 1 ? q : phrases[0]).replace(/\b\w/g, ch => ch.toUpperCase());
   const est = cells.length * phrases.length * 2;
-  if (!confirm(`Sweep ${phrases.length > 1 ? phrases.length + " phrasings (" + phrases.join(", ") + ")" : "“" + q + "”"} across ${cells.length} map sections${scope === "ga" ? " covering Georgia" : ""}. Full sections get split and re-searched so nothing is cut off at 60. Roughly ${est}+ Google requests (about $${(est * 0.035).toFixed(0)}+ of your monthly allowance) and several minutes. Continue?`)) return;
-  const btn = $("f-sweep"); btn.disabled = true; $("f-source-go").disabled = true;
-  let found = 0, added = 0, done = 0, errors = 0, splits = 0;
-  const queue = [];
-  for (const ph of phrases) for (const c of cells) queue.push({ ph, c, depth: 0 });
-  const total0 = queue.length;
-  while (queue.length) {
-    const { ph, c, depth } = queue.shift();
-    btn.textContent = `Sweeping ${++done}/${total0 + splits * 4}…`;
-    try {
-      const r = await api("discover", { query: ph, category, pages: 3, bounds: c });
-      if (r.google_error) { errors++; if (errors > 5) { alert("Google: " + r.google_error); break; } continue; }
-      found += r.found; added += r.inserted;
-      if (r.found >= 60 && depth < 3) {
-        splits++;
-        const midLat = (c.north + c.south) / 2, midLng = (c.east + c.west) / 2;
-        queue.push({ ph, c: { south: c.south, north: midLat, west: c.west, east: midLng }, depth: depth + 1 }, { ph, c: { south: c.south, north: midLat, west: midLng, east: c.east }, depth: depth + 1 },
-                   { ph, c: { south: midLat, north: c.north, west: c.west, east: midLng }, depth: depth + 1 }, { ph, c: { south: midLat, north: c.north, west: midLng, east: c.east }, depth: depth + 1 });
-      }
-    } catch (e) { errors++; if (errors > 5) { alert(e.message); break; } }
-    if (done % 8 === 0) await loadProspects();
-  }
-  await loadProspects();
-  btn.disabled = false; btn.textContent = "Sweep everything"; $("f-source-go").disabled = false;
-  $("hm-stats").textContent += ` · sweep done: ${added} new of ${found} found, ${splits} full sections split`;
+  const label = scope === "ga" ? "all of Georgia" : scope === "box" ? "the box you drew" : `${scope} miles of Tucker`;
+  if (!confirm(`Sweep ${phrases.length > 1 ? phrases.length + " phrasings of “" + q + "”" : "“" + q + "”"} across ${label}: ${cells.length} sections to start, busy ones split automatically so nothing is capped at 60. Runs in the background (about ${Math.ceil(est / 16)} min for the first pass, longer in dense areas), roughly ${est}+ Google requests. Start it?`)) return;
+  try {
+    const r = await api("sweep_start", { query: q, category, phrases, cells, scope });
+    $("hm-stats").textContent = `Sweep started: “${q}” across ${label}. It keeps going even if you close the page; progress shows in Auto-find.`;
+    pollSweeps();
+  } catch (e) { $("hm-stats").textContent = "Couldn’t start the sweep: " + e.message; }
 });
+/* sweep progress (background) */
+async function pollSweeps() {
+  try {
+    const d = await api("sweep_status"); const running = (d.sweeps || []).filter(x => x.status === "running");
+    const box = $("sweep-progress"); if (!box) return;
+    if (!running.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = running.map(x => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><span><b>${esc(x.query)}</b> · ${x.cells_done}/${x.cells_total} sections · ${x.inserted} new of ${x.found} found · ${x.requests} requests</span><button class="link" type="button" data-cancel="${x.id}" style="background:none;border:0;text-decoration:underline;cursor:pointer;color:inherit;font-size:13px">Stop</button></div>`).join("");
+  } catch (e) {}
+}
+setInterval(() => { if (document.body.classList.contains("admin") && session) pollSweeps(); }, 30000);
 /* Pricing request: builds a mailto so it works with no backend */
 document.getElementById("send").addEventListener("click", () => {
   const v = id => document.getElementById(id).value.trim();
