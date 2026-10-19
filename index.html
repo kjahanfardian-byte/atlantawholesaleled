@@ -1540,26 +1540,73 @@ function gridFor(scope) {
     cells.push({ south: lat, north: Math.min(lat + latStep, b.getNorth()), west: lng, east: Math.min(lng + lngStep, b.getEast()) });
   return cells;
 }
+/* phrasing sets: one target word expands to the ways businesses actually list themselves */
+const PHRASES = {
+  "electrical contractors": ["electrical contractor", "electrician", "electrical services", "electric company", "commercial electrician", "lighting contractor"],
+  "electricians": ["electrician", "electrical contractor", "electrical services", "electric company", "commercial electrician"],
+  "sign companies": ["sign company", "sign shop", "custom signs", "signage", "vehicle wraps", "neon signs", "channel letters"],
+  "sign shops": ["sign shop", "sign company", "custom signs", "signage", "vehicle wraps"],
+  "general contractors": ["general contractor", "construction company", "commercial contractor", "remodeling contractor", "builder"],
+  "property management": ["property management", "property manager", "commercial property management", "HOA management", "apartment management"],
+  "car dealerships": ["car dealership", "used car dealer", "auto dealer", "auto sales"],
+  "warehouses": ["warehouse", "distribution center", "logistics company", "fulfillment center", "cold storage"],
+  "gas stations": ["gas station", "fuel station", "convenience store with gas", "truck stop"],
+  "self storage": ["self storage", "storage units", "storage facility"],
+  "auto body shops": ["auto body shop", "collision repair", "auto repair shop", "mechanic"],
+  "gyms": ["gym", "fitness center", "crossfit", "martial arts studio", "yoga studio"],
+  "churches": ["church", "chapel", "ministry", "worship center", "mosque", "temple", "synagogue"],
+  "hotels": ["hotel", "motel", "inn", "extended stay"],
+  "restaurants": ["restaurant", "diner", "fast food", "cafe", "bar and grill"],
+  "schools": ["school", "private school", "daycare", "learning center", "charter school"],
+  "medical offices": ["medical office", "clinic", "dental office", "urgent care", "doctor's office", "chiropractor"],
+  "manufacturing": ["manufacturer", "manufacturing company", "machine shop", "fabrication", "industrial supply"],
+  "parking garages": ["parking garage", "parking deck", "parking lot"],
+  "shopping centers": ["shopping center", "strip mall", "plaza", "retail center"],
+  "lighting stores": ["lighting store", "electrical supply", "lighting showroom"],
+  "hvac contractors": ["HVAC contractor", "heating and air", "air conditioning repair", "HVAC company"],
+  "plumbers": ["plumber", "plumbing contractor", "plumbing company"],
+  "roofers": ["roofing contractor", "roofer", "roofing company"],
+};
+function phrasingsFor(q) {
+  if (q.includes(",")) return q.split(",").map(x => x.trim()).filter(Boolean);
+  const k = q.toLowerCase().replace(/\s+/g, " ").trim();
+  for (const key of Object.keys(PHRASES)) if (k === key || k === key.replace(/s$/, "") || k + "s" === key) return PHRASES[key];
+  return [q];
+}
 $("f-sweep").addEventListener("click", async () => {
   const q = $("f-q").value.trim(); if (!q) return;
   const scope = $("f-sweep-scope").value;
   const cells = gridFor(scope);
   if (!cells) { alert("Draw a box on the map first (▭ button), or pick a distance."); return; }
-  const est = cells.length * 2;
-  if (!confirm(`Sweep “${q}” across ${cells.length} map sections${scope === "ga" ? " covering Georgia" : ""}. That’s roughly ${est} Google requests (about $${(est * 0.032).toFixed(0)} of your free monthly credit) and takes a few minutes. Continue?`)) return;
+  const phrases = phrasingsFor(q);
+  const category = (phrases.length > 1 ? q : phrases[0]).replace(/\b\w/g, ch => ch.toUpperCase());
+  const est = cells.length * phrases.length * 2;
+  if (!confirm(`Sweep ${phrases.length > 1 ? phrases.length + " phrasings (" + phrases.join(", ") + ")" : "“" + q + "”"} across ${cells.length} map sections${scope === "ga" ? " covering Georgia" : ""}. Full sections get split and re-searched so nothing is cut off at 60. Roughly ${est}+ Google requests (about $${(est * 0.035).toFixed(0)}+ of your monthly allowance) and several minutes. Continue?`)) return;
   const btn = $("f-sweep"); btn.disabled = true; $("f-source-go").disabled = true;
-  let found = 0, added = 0, done = 0, errors = 0;
-  for (const c of cells) {
-    btn.textContent = `Sweeping ${++done}/${cells.length}…`;
-    try { const r = await api("discover", { query: q, category: q.replace(/\b\w/g, ch => ch.toUpperCase()), pages: 3, bounds: c }); if (r.google_error) { errors++; if (errors > 5) { alert("Google: " + r.google_error); break; } } else { found += r.found; added += r.inserted; } }
-    catch (e) { errors++; if (errors > 5) { alert(e.message); break; } }
-    if (done % 6 === 0) await loadProspects();
+  let found = 0, added = 0, done = 0, errors = 0, splits = 0;
+  const queue = [];
+  for (const ph of phrases) for (const c of cells) queue.push({ ph, c, depth: 0 });
+  const total0 = queue.length;
+  while (queue.length) {
+    const { ph, c, depth } = queue.shift();
+    btn.textContent = `Sweeping ${++done}/${total0 + splits * 4}…`;
+    try {
+      const r = await api("discover", { query: ph, category, pages: 3, bounds: c });
+      if (r.google_error) { errors++; if (errors > 5) { alert("Google: " + r.google_error); break; } continue; }
+      found += r.found; added += r.inserted;
+      if (r.found >= 60 && depth < 3) {
+        splits++;
+        const midLat = (c.north + c.south) / 2, midLng = (c.east + c.west) / 2;
+        queue.push({ ph, c: { south: c.south, north: midLat, west: c.west, east: midLng }, depth: depth + 1 }, { ph, c: { south: c.south, north: midLat, west: midLng, east: c.east }, depth: depth + 1 },
+                   { ph, c: { south: midLat, north: c.north, west: c.west, east: midLng }, depth: depth + 1 }, { ph, c: { south: midLat, north: c.north, west: midLng, east: c.east }, depth: depth + 1 });
+      }
+    } catch (e) { errors++; if (errors > 5) { alert(e.message); break; } }
+    if (done % 8 === 0) await loadProspects();
   }
   await loadProspects();
   btn.disabled = false; btn.textContent = "Sweep everything"; $("f-source-go").disabled = false;
-  $("hm-stats").textContent += ` · sweep done: ${added} new of ${found} found`;
+  $("hm-stats").textContent += ` · sweep done: ${added} new of ${found} found, ${splits} full sections split`;
 });
-
 /* Pricing request: builds a mailto so it works with no backend */
 document.getElementById("send").addEventListener("click", () => {
   const v = id => document.getElementById(id).value.trim();
