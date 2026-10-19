@@ -228,7 +228,9 @@
   .hm-detail .f label { font-size: 12px; color: var(--mute); font-weight: 600; }
   .hm-detail .f input, .hm-detail .f select, .hm-detail .f textarea { padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); color: var(--ink); font-size: 14px; width: 100%; }
   .hm-detail .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-  .hm-detail .close { position: absolute; top: 10px; right: 10px; }
+  .hm-detail .close { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; padding: 0 !important; border-radius: 50%; background: var(--ink) !important; color: var(--paper) !important; border: 0 !important; font-size: 20px; line-height: 32px; text-align: center; z-index: 2; }
+  .hm-detail .close:hover { background: var(--ink-2) !important; }
+  .hm-detail h4 { padding-right: 40px; }
   .send-log { font-size: 13.5px; margin-top: 10px; max-height: 220px; overflow: auto; border-top: 1px solid var(--line); padding-top: 8px; }
   .send-log .ok { color: #1B6B3F; } .send-log .bad { color: #B42318; }
   #map.style-grey .leaflet-tile-pane { filter: grayscale(1) brightness(1.04) contrast(.92); }
@@ -533,6 +535,7 @@
   <div class="box wide">
     <h3>Send outreach email</h3>
     <p class="note" id="c-to"></p>
+    <div class="field" id="c-to-field" hidden><label for="c-to-input">To</label><input id="c-to-input" type="email" placeholder="recipient@company.com"></div>
     <p class="err" id="c-err"></p>
     <div class="field"><label for="c-subject">Subject</label><input id="c-subject"></div>
     <div class="field"><label for="c-body">Message</label><textarea id="c-body" style="min-height:220px"></textarea></div>
@@ -547,6 +550,7 @@
 <div class="ctx" id="ctx" role="menu">
   <div class="hd" id="ctx-name"></div>
   <button type="button" data-act="email">Email this business</button>
+  <button type="button" data-act="text">Text this business</button>
   <button type="button" data-act="details">Details</button>
   <button type="button" data-act="map">Show on map</button>
   <button type="button" data-act="contacted">Mark contacted</button>
@@ -1079,7 +1083,7 @@ function initMap() {
     ["standard", "grey", "dark"].forEach(k => { const b = L.DomUtil.create("button", "", d); b.type = "button"; b.textContent = k[0].toUpperCase() + k.slice(1); b.dataset.k = k; b.style.cssText = "border:0;background:" + (k === styleKey ? "#15202B" : "transparent") + ";color:" + (k === styleKey ? "#fff" : "#15202B") + ";padding:4px 8px;border-radius:4px;cursor:pointer;font:600 12px/1.2 inherit";
       L.DomEvent.on(b, "click", e => { L.DomEvent.stop(e); styleKey = k; localStorage.setItem("awl_map_style", k); applyStyle(k); [...d.children].forEach(x => { const on = x.dataset.k === k; x.style.background = on ? "#15202B" : "transparent"; x.style.color = on ? "#fff" : "#15202B"; }); }); });
     L.DomEvent.disableClickPropagation(d); return d; } });
-  new StyleCtl({ position: "topright" }).addTo(hm.map);
+  new StyleCtl({ position: "bottomright" }).addTo(hm.map);
   L.marker([HQ.lat, HQ.lng], { icon: L.divIcon({ className: "", html: '<div class="pin hq"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 1000 }).addTo(hm.map).bindPopup(`<b>${HQ.name}</b><br>1810 Auger Dr, Ste A`);
   hm.layer = L.layerGroup().addTo(hm.map);
   setTimeout(() => hm.map.invalidateSize(), 100);
@@ -1205,7 +1209,7 @@ function openDetail(id) {
   hm.active = id;
   const d = $("hm-detail");
   d.innerHTML = `
-    <button class="close btn ghost" type="button" style="padding:4px 10px" id="d-close">×</button>
+    <button class="close" type="button" id="d-close" aria-label="Close">×</button>
     <h4>${esc(p.name)}</h4>
     <span class="pill ${p.status}">${p.status}</span>${p.contacted_at ? ` <span class="note" style="font-size:12px;color:var(--mute)">contacted ${new Date(p.contacted_at).toLocaleDateString()}</span>` : ""}
     <div class="f"><label>Status</label><select id="d-status">${STATUSES.map(s => `<option ${p.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div>
@@ -1219,6 +1223,7 @@ function openDetail(id) {
     <div class="actions">
       <button class="btn primary" type="button" id="d-save" style="padding:8px 14px;font-size:14px">Save</button>
       <button class="btn ghost" type="button" id="d-send" style="padding:8px 14px;font-size:14px">Email this one</button>
+      ${p.phone ? `<a class="btn ghost" style="padding:8px 14px;font-size:14px" href="${smsLink(p)}">Text</a><a class="btn ghost" style="padding:8px 14px;font-size:14px" href="tel:${esc(p.phone.replace(/[^\d+]/g, ""))}">Call</a>` : ""}
       ${p.website ? `<a class="btn ghost" style="padding:8px 14px;font-size:14px" href="${esc(/^https?:/.test(p.website) ? p.website : "https://" + p.website)}" target="_blank" rel="noopener">Open site</a>` : ""}
     </div>`;
   d.classList.add("open");
@@ -1252,6 +1257,8 @@ function openComposer() {
   if (rows.length === 1) { $("c-subject").value = fill(hm.template.subject, rows[0]); $("c-body").value = fill(hm.template.body, rows[0]); }
   else { $("c-subject").value = hm.template.subject || ""; $("c-body").value = hm.template.body || ""; }
   hm.composeSingle = rows.length === 1 ? rows[0] : null;
+  $("c-to-field").hidden = rows.length !== 1;
+  if (rows.length === 1) { $("c-to-input").value = rows[0].email || ""; $("c-send").disabled = false; }
   $("c-note").textContent = rows.length === 1 ? `Filled in for ${rows[0].name}. Edit anything before sending.` : "Placeholders: {{business}}, {{city}}, {{category}}. Each recipient gets their own email.";
   $("c-err").textContent = hm.template.has_resend_key ? "" : "No Resend API key saved yet. Add it under Email settings before sending.";
   $("c-log").hidden = true; $("c-log").innerHTML = "";
@@ -1263,8 +1270,15 @@ $("c-save").addEventListener("click", async () => {
   try { await api("save_template", { values: { email_subject: $("c-subject").value, email_body: $("c-body").value } }); hm.template.subject = $("c-subject").value; hm.template.body = $("c-body").value; $("c-err").textContent = "Template saved."; } catch (e) { $("c-err").textContent = e.message; }
 });
 $("c-send").addEventListener("click", async () => {
+  if (hm.composeSingle) {
+    const to = $("c-to-input").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { $("c-err").textContent = "Enter a valid email address in the To field."; return; }
+    if (to !== (hm.composeSingle.email || "")) {
+      try { const r = await api("update", { id: hm.composeSingle.id, fields: { email: to } }); hm.composeSingle.email = r.prospect.email; renderHitmap(); } catch (e) { $("c-err").textContent = e.message; return; }
+    }
+  }
   const ids = [...hm.selected].filter(id => (hm.prospects.find(p => p.id === id) || {}).email);
-  if (!ids.length) return;
+  if (!ids.length) { $("c-err").textContent = "None of the selected prospects has an email address."; return; }
   if (!confirm(`Send to ${ids.length} recipient${ids.length === 1 ? "" : "s"} now?`)) return;
   $("c-send").disabled = true; $("c-err").textContent = ""; $("c-log").hidden = false; $("c-log").innerHTML = "Sending…";
   try {
@@ -1394,7 +1408,7 @@ function renderThread(t) {
   const lastIn = t.lastIn;
   const replySubject = t.last.subject ? (/^re:/i.test(t.last.subject) ? t.last.subject : "Re: " + t.last.subject) : "";
   d.innerHTML = `
-    <button class="close btn ghost" type="button" style="padding:4px 10px" id="t-close">×</button>
+    <button class="close" type="button" id="t-close" aria-label="Close">×</button>
     <h4>${esc(t.name)}</h4>
     <div style="font-size:13px;color:var(--mute);margin-bottom:6px">${t.p ? esc([t.p.category, t.p.city].filter(Boolean).join(" · ")) + (t.p.email ? " · " + esc(t.p.email) : "") : esc(t.last.from_email || t.last.to_email || "")}</div>
     <div class="actions" style="margin:0 0 6px">
@@ -1471,6 +1485,15 @@ $("c-preview").addEventListener("click", () => {
 document.querySelector('[data-close="m-pdf"]').addEventListener("click", () => { $("pdf-frame").src = "about:blank"; });
 
 
+
+const SMS_TEMPLATE = "Hi {{business}}, this is Patrick with Atlanta Wholesale LED in Tucker. We stock commercial LED fixtures (high bays, panels, wall packs, shoebox lights) and sell by the case to the trade with same-day pickup. Can I send over our catalog and wholesale pricing? atlantawholesaleled.com";
+function smsLink(p) {
+  const num = (p.phone || "").replace(/[^\d+]/g, "");
+  const body = SMS_TEMPLATE.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (p[k] ?? ({ business: p.name })[k] ?? ""));
+  const sep = /iPhone|iPad|Macintosh/.test(navigator.userAgent) ? "&" : "?";
+  return `sms:${num}${sep}body=${encodeURIComponent(body)}`;
+}
+
 /* ---- right-click menu ---- */
 const ctx = $("ctx"); let ctxId = null;
 function openCtx(id, x, y) {
@@ -1489,6 +1512,7 @@ ctx.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b || !ctxId) return;
   const id = ctxId; closeCtx();
   if (b.dataset.act === "email") { hm.selected = new Set([id]); updateSel(); openComposer(); }
+  if (b.dataset.act === "text") { const p = hm.prospects.find(q => q.id === id); if (!p.phone) { alert("No phone number on file for " + p.name + "."); return; } window.location.href = smsLink(p); }
   if (b.dataset.act === "details") openDetail(id);
   if (b.dataset.act === "map") focusProspect(id);
   if (b.dataset.act === "contacted") setStatus([id], "contacted");
