@@ -535,7 +535,7 @@
   <div class="box wide">
     <h3>Send outreach email</h3>
     <p class="note" id="c-to"></p>
-    <div class="field" id="c-to-field" hidden><label for="c-to-input">To</label><input id="c-to-input" type="email" placeholder="recipient@company.com"></div>
+    <div class="field" id="c-to-field" hidden><label for="c-to-input">To</label><input id="c-to-input" type="email" placeholder="recipient@company.com"><span class="note" id="c-to-note" style="margin:4px 0 0"></span></div>
     <p class="err" id="c-err"></p>
     <div class="field"><label for="c-subject">Subject</label><input id="c-subject"></div>
     <div class="field"><label for="c-body">Message</label><textarea id="c-body" style="min-height:220px"></textarea></div>
@@ -1258,7 +1258,7 @@ function openComposer() {
   else { $("c-subject").value = hm.template.subject || ""; $("c-body").value = hm.template.body || ""; }
   hm.composeSingle = rows.length === 1 ? rows[0] : null;
   $("c-to-field").hidden = rows.length !== 1;
-  if (rows.length === 1) { $("c-to-input").value = rows[0].email || ""; $("c-send").disabled = false; }
+  if (rows.length === 1) { $("c-to-input").value = rows[0].email || ""; $("c-send").disabled = false; $("c-to-note").textContent = rows[0].email ? "" : "No email on file yet. Type one here and it saves to this business."; }
   $("c-note").textContent = rows.length === 1 ? `Filled in for ${rows[0].name}. Edit anything before sending.` : "Placeholders: {{business}}, {{city}}, {{category}}. Each recipient gets their own email.";
   $("c-err").textContent = hm.template.has_resend_key ? "" : "No Resend API key saved yet. Add it under Email settings before sending.";
   $("c-log").hidden = true; $("c-log").innerHTML = "";
@@ -1295,6 +1295,19 @@ $("c-send").addEventListener("click", async () => {
     hm.selected.clear(); renderHitmap(); api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
     setTimeout(() => { btn.textContent = "Send"; btn.disabled = false; }, 4000);
   } catch (e) { $("c-err").textContent = "✗ " + e.message; log.innerHTML = ""; btn.textContent = "Send"; btn.disabled = false; }
+});
+
+
+/* save a typed To address to the business as soon as it’s entered */
+$("c-to-input").addEventListener("change", async () => {
+  if (!hm.composeSingle) return;
+  const to = $("c-to-input").value.trim(); const note = $("c-to-note");
+  if (!to) { note.textContent = ""; return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) { note.textContent = "That doesn’t look like an email address."; return; }
+  if (to === (hm.composeSingle.email || "")) { note.textContent = ""; return; }
+  note.textContent = "Saving…";
+  try { const r = await api("update", { id: hm.composeSingle.id, fields: { email: to } }); hm.composeSingle.email = r.prospect.email; const p = hm.prospects.find(x => x.id === hm.composeSingle.id); if (p) p.email = r.prospect.email; renderHitmap(); $("c-send").disabled = false; note.textContent = `✓ Saved to ${hm.composeSingle.name}`; }
+  catch (e) { note.textContent = "✗ " + e.message; }
 });
 
 /* ---- settings ---- */
