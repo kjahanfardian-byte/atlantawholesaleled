@@ -277,8 +277,14 @@
   .fu-chart { position: absolute; inset: 0; z-index: 1100; background: var(--bg); display: flex; flex-direction: column; }
   .fu-chart[hidden] { display: none; }
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
-  .fu-mermaid { flex: 1; overflow: auto; padding: 16px; }
-  .fu-mermaid svg { max-width: 100%; height: auto; }
+  .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
+  .fu-viewport.dragging { cursor: grabbing; }
+  .fu-mermaid { position: absolute; left: 0; top: 0; transform-origin: 0 0; padding: 16px; will-change: transform; }
+  .fu-mermaid svg { max-width: none !important; height: auto; display: block; }
+  .fu-zoom { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 4px; z-index: 2; }
+  .fu-zoom button { width: 34px; height: 30px; border: 0; background: transparent; color: var(--ink); font-size: 16px; font-weight: 700; cursor: pointer; border-radius: 6px; }
+  .fu-zoom button:hover { background: var(--paper-2); }
+  .fu-zoom #fz-fit { width: auto; padding: 0 10px; font-size: 13px; }
   .fu-mermaid .node { cursor: pointer; }
   .fu-mermaid .cluster rect { rx: 8; ry: 8; }
   .fu-mermaid .cluster-label { font-weight: 700; }
@@ -575,7 +581,10 @@
       <div id="map"></div>
       <div id="fu-chart" class="fu-chart" hidden>
         <div class="fu-chart-head"><b id="fu-chart-title">Follow-up flow</b><span class="grow"></span><span class="note" id="fu-chart-note">Click a step to list the businesses on it.</span></div>
-        <div id="fu-mermaid" class="fu-mermaid"></div>
+        <div id="fu-viewport" class="fu-viewport">
+          <div id="fu-mermaid" class="fu-mermaid"></div>
+          <div class="fu-zoom"><button type="button" id="fz-in" title="Zoom in">+</button><button type="button" id="fz-out" title="Zoom out">−</button><button type="button" id="fz-fit" title="Fit to screen">Fit</button></div>
+        </div>
       </div>
       <div class="hm-detail" id="hm-detail"></div>
     </div>
@@ -1801,6 +1810,7 @@ function renderFollowups() {
     mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", flowchart: { useMaxWidth: false, nodeSpacing: 30, rankSpacing: 40 }, themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
     mermaid.render("fu-svg-" + Date.now(), def).then(({ svg }) => {
       $("fu-mermaid").innerHTML = svg;
+      fz.k = 1; fz.x = 0; fz.y = 0; fzApply(); requestAnimationFrame(fzFit);
       const nodes = $("fu-mermaid").querySelectorAll(".node");
       nodes.forEach(n => {
         if (view === "all") { const m = n.id.match(/-C(\d+)(?:[a-e])?-/); if (m) { const catsSorted = [...new Set(staged.map(x => x.p.category || "(no industry)"))].sort((a, b) => staged.filter(x => (x.p.category || "(no industry)") === b).length - staged.filter(x => (x.p.category || "(no industry)") === a).length); const c = catsSorted[+m[1]]; n.addEventListener("click", () => { $("fu-cat").value = c === "(no industry)" ? "" : c; $("fu-biz").value = ""; fuSelectedStage = ""; $("fu-stage").value = ""; renderFollowups(); }); } }
@@ -1854,6 +1864,38 @@ $("fu-run").addEventListener("click", () => {
   const kind = rows.every(x => x.stage === "sent_nores") ? "followup" : "initial";
   hm.selected = new Set(rows.map(x => x.p.id)); updateSel(); openComposer(kind === "followup" ? "followup" : undefined);
 });
+
+
+/* ---- pan + zoom for the follow-up chart ---- */
+const fz = { k: 1, x: 0, y: 0, drag: null };
+function fzApply() { $("fu-mermaid").style.transform = `translate(${fz.x}px, ${fz.y}px) scale(${fz.k})`; }
+function fzFit() {
+  const vp = $("fu-viewport"), svg = $("fu-mermaid").querySelector("svg"); if (!svg) return;
+  const w = svg.getBoundingClientRect().width / fz.k + 32, h = svg.getBoundingClientRect().height / fz.k + 32;
+  const k = Math.min(1.6, Math.min(vp.clientWidth / w, vp.clientHeight / h));
+  fz.k = k > 0 && isFinite(k) ? k : 1; fz.x = Math.max(0, (vp.clientWidth - w * fz.k) / 2); fz.y = 0; fzApply();
+}
+function fzZoomAt(factor, cx, cy) {
+  const vp = $("fu-viewport").getBoundingClientRect();
+  const px = (cx ?? vp.left + vp.width / 2) - vp.left, py = (cy ?? vp.top + vp.height / 2) - vp.top;
+  const nk = Math.min(4, Math.max(0.15, fz.k * factor));
+  fz.x = px - (px - fz.x) * (nk / fz.k); fz.y = py - (py - fz.y) * (nk / fz.k); fz.k = nk; fzApply();
+}
+(() => {
+  const vp = $("fu-viewport");
+  vp.addEventListener("wheel", e => { e.preventDefault(); fzZoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX, e.clientY); }, { passive: false });
+  vp.addEventListener("mousedown", e => { if (e.button !== 0 || e.target.closest(".fu-zoom")) return; fz.drag = { sx: e.clientX, sy: e.clientY, ox: fz.x, oy: fz.y, moved: false }; vp.classList.add("dragging"); });
+  window.addEventListener("mousemove", e => { if (!fz.drag) return; const dx = e.clientX - fz.drag.sx, dy = e.clientY - fz.drag.sy; if (Math.abs(dx) + Math.abs(dy) > 3) fz.drag.moved = true; fz.x = fz.drag.ox + dx; fz.y = fz.drag.oy + dy; fzApply(); });
+  window.addEventListener("mouseup", () => { if (fz.drag && fz.drag.moved) { vp.dataset.justDragged = "1"; setTimeout(() => { vp.dataset.justDragged = ""; }, 50); } fz.drag = null; vp.classList.remove("dragging"); });
+  vp.addEventListener("click", e => { if (vp.dataset.justDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
+  let pinch = null;
+  vp.addEventListener("touchstart", e => { if (e.touches.length === 1) fz.drag = { sx: e.touches[0].clientX, sy: e.touches[0].clientY, ox: fz.x, oy: fz.y, moved: false }; if (e.touches.length === 2) pinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }, { passive: true });
+  vp.addEventListener("touchmove", e => { if (e.touches.length === 1 && fz.drag) { fz.x = fz.drag.ox + e.touches[0].clientX - fz.drag.sx; fz.y = fz.drag.oy + e.touches[0].clientY - fz.drag.sy; fzApply(); } if (e.touches.length === 2 && pinch) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); fzZoomAt(d / pinch, (e.touches[0].clientX + e.touches[1].clientX) / 2, (e.touches[0].clientY + e.touches[1].clientY) / 2); pinch = d; } e.preventDefault(); }, { passive: false });
+  vp.addEventListener("touchend", () => { fz.drag = null; pinch = null; });
+  $("fz-in").addEventListener("click", () => fzZoomAt(1.25));
+  $("fz-out").addEventListener("click", () => fzZoomAt(1 / 1.25));
+  $("fz-fit").addEventListener("click", fzFit);
+})();
 
 /* ---- folders ---- */
 hm.folders = []; hm.folderItems = []; hm.folder = null;
