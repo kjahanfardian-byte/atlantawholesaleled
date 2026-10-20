@@ -1705,13 +1705,13 @@ const FU_LINE = `
     classDef biz fill:#fff,stroke:#8A94A0,color:#15202B;
     classDef sel stroke-width:4px,stroke:#15202B;
     classDef here fill:#F2B705,stroke:#15202B,stroke-width:4px,color:#15202B;`;
-const q = t => String(t).replace(/"/g, "'").replace(/[<>]/g, "");
+const fuq = t => String(t).replace(/"/g, "'").replace(/[<>]/g, "");
 function fuTreeFor(items, idSuffix, titleLabel) {
   /* the scenario tree with live counts for a set of businesses */
   const count = k => items.filter(x => x.stage === k).length;
   const S = idSuffix;
   return `
-    IND${S}["${q(titleLabel)}<br/>${items.length} businesses"] --> HAS${S}{Email on file?}
+    IND${S}["${fuq(titleLabel)}<br/>${items.length} businesses"] --> HAS${S}{Email on file?}
     HAS${S} -- no --> NOEMAIL${S}["No email: ${count("noemail")}<br/>→ Call"]
     HAS${S} -- yes --> SENT${S}{Email sent?}
     SENT${S} -- not yet --> NONE${S}["Nothing sent: ${count("none")}<br/>→ Send email"]
@@ -1740,7 +1740,7 @@ function fuDiagram(view, staged, cat, biz) {
     cats.slice(0, 24).forEach((c, i) => {
       const items = staged.filter(x => (x.p.category || "(no industry)") === c);
       const need = items.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
-      def += `    C${i}["${q(c)}<br/>${items.length} businesses · ${need} need action"]:::top\n`;
+      def += `    C${i}["${fuq(c)}<br/>${items.length} businesses · ${need} need action"]:::top\n`;
       def += `    C${i} --> C${i}a["Send email: ${items.filter(x => x.stage === "none").length}"]:::email\n`;
       def += `    C${i} --> C${i}b["Follow-up: ${items.filter(x => x.stage === "sent_nores").length}"]:::email\n`;
       def += `    C${i} --> C${i}c["Call: ${items.filter(x => ["noemail", "bounced", "replied", "fu_nores"].includes(x.stage)).length}"]:::phone\n`;
@@ -1758,8 +1758,8 @@ function fuDiagram(view, staged, cat, biz) {
     Object.entries(groups).forEach(([stage, ps]) => {
       const node = FU_NODE[stage]; if (!node) return;
       const label = FU_STAGES[stage].label;
-      def += `    subgraph G_${node}["${q(label)} (${ps.length})"]\n      direction TB\n`;
-      ps.slice(0, 18).forEach((p, i) => { def += `      B_${node}_${i}["${q(p.name.slice(0, 34))}"]:::biz\n`; });
+      def += `    subgraph G_${node}["${fuq(label)} (${ps.length})"]\n      direction TB\n`;
+      ps.slice(0, 18).forEach((p, i) => { def += `      B_${node}_${i}["${fuq(p.name.slice(0, 34))}"]:::biz\n`; });
       if (ps.length > 18) def += `      B_${node}_more["+${ps.length - 18} more"]:::biz\n`;
       def += `    end\n    ${node} --- G_${node}\n`;
     });
@@ -1771,14 +1771,14 @@ function fuDiagram(view, staged, cat, biz) {
   const path = { none: ["HAS", "SENT", "NONE"], noemail: ["HAS", "NOEMAIL"], sent_wait: ["HAS", "SENT", "RES", "SENTWAIT"], sent_nores: ["HAS", "SENT", "RES", "SENTNORES"], fu_wait: ["HAS", "SENT", "RES", "SENTNORES", "FU", "FUWAIT"], fu_nores: ["HAS", "SENT", "RES", "SENTNORES", "FU", "FUNORES"], bounced: ["HAS", "SENT", "RES", "BOUNCED"], replied: ["HAS", "SENT", "RES", "REPLIED"], called: ["HAS", "SENT", "RES", "CALLED"], customer: ["HAS", "SENT", "RES", "CALLED", "CUST"], skip: ["HAS", "SENT", "RES", "CALLED", "SKIP"] }[stage] || [];
   const outs = hm.messages.filter(m => m.prospect_id === p.id && m.direction === "out").length, ins = hm.messages.filter(m => m.prospect_id === p.id && m.direction === "in").length;
   let def = "flowchart TD\n";
-  def += `    IND["${q(p.category || "No industry")}"]:::top --> BIZ["${q(p.name)}<br/>${q(p.contact_name || "")}${p.contact_name ? "<br/>" : ""}${q(p.email || "no email")}${p.phone ? "<br/>" + q(p.phone) : ""}"]:::biz\n`;
+  def += `    IND["${fuq(p.category || "No industry")}"]:::top --> BIZ["${fuq(p.name)}<br/>${fuq(p.contact_name || "")}${p.contact_name ? "<br/>" : ""}${fuq(p.email || "no email")}${p.phone ? "<br/>" + fuq(p.phone) : ""}"]:::biz\n`;
   def += `    BIZ --> HAS{Email on file?<br/>${p.email ? "yes" : "no"}}\n`;
   def += `    HAS --> SENT{Email sent?<br/>${outs ? outs + " sent" : "not yet"}}\n`;
   def += `    SENT --> RES{Responded?<br/>${ins ? ins + " repl" + (ins === 1 ? "y" : "ies") : "no reply yet"}}\n`;
   def += `    HAS -.-> NOEMAIL["No email → Call"]:::phone\n    SENT -.-> NONE["Nothing sent → Send email"]:::email\n    RES -.-> BOUNCED["Bounced → Call"]:::phone\n    RES -.-> SENTWAIT["Sent, waiting"]:::wait\n    RES -.-> SENTNORES["No response → Follow-up"]:::email\n    RES -.-> REPLIED["Responded → Call"]:::phone\n    SENTNORES -.-> FU{Responded to follow-up?}\n    FU -.-> FUWAIT["Waiting"]:::wait\n    FU -.-> FUNORES["No response → Call"]:::phone\n    FU -.-> REPLIED\n    NOEMAIL -.-> CALLED["Called"]:::done\n    BOUNCED -.-> CALLED\n    REPLIED -.-> CALLED\n    FUNORES -.-> CALLED\n    CALLED -.-> CUST["Customer"]:::done\n    CALLED -.-> SKIP["Skipped"]:::done\n`;
   path.forEach(n => { def += `    class ${n} sel;\n`; });
   const cur = FU_NODE[stage]; if (cur) def += `    class ${cur} here;\n`;
-  def += `    NEXT["Next: ${q(FU_STAGES[stage].next)}"]:::here\n    ${cur || "BIZ"} ==> NEXT\n`;
+  def += `    NEXT["Next: ${fuq(FU_STAGES[stage].next)}"]:::here\n    ${cur || "BIZ"} ==> NEXT\n`;
   return def + FU_LINE;
 }
 function renderFollowups() {
