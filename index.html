@@ -10,6 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,300..900;1,62..125,300..900&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
 <style>
   :root {
     color-scheme: light;
@@ -211,11 +212,12 @@
   .pill.contacted { background: #DFF3E7; color: #1B6B3F; border-color: #BFE5CE; }
   .pill.replied { background: #DCE9FF; color: #1D4F9C; border-color: #BBD3FA; }
   .pill.customer { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .pill.called { background: #EDE4FF; color: #5B21B6; border-color: #D8C8FB; }
   .pill.skip { opacity: .6; }
   .hm-map { position: relative; min-height: 0; }
   #map { position: absolute; inset: 0; }
   .pin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); display: grid; place-items: center; }
-  .pin.new { background: #F2B705; } .pin.contacted { background: #2F9E62; } .pin.replied { background: #2E6FD8; } .pin.customer { background: #15202B; } .pin.skip { background: #9AA3AD; }
+  .pin.new { background: #F2B705; } .pin.contacted { background: #2F9E62; } .pin.replied { background: #2E6FD8; } .pin.called { background: #7C3AED; } .pin.customer { background: #15202B; } .pin.skip { background: #9AA3AD; }
   .pin.hq { width: 20px; height: 20px; background: #15202B; border-color: #F2B705; border-width: 3px; }
   .pin svg { width: 9px; height: 9px; stroke: #fff; stroke-width: 3; fill: none; }
   .leaflet-popup-content { font-family: inherit; font-size: 13.5px; line-height: 1.4; }
@@ -269,6 +271,23 @@
   .msg .bd { white-space: pre-wrap; font-size: 14px; margin-top: 8px; line-height: 1.45; max-height: 320px; overflow: auto; }
   .msg .bd.html iframe { width: 100%; height: 320px; border: 0; background: #fff; border-radius: 6px; }
   .reply-box textarea { min-height: 120px; }
+  .hm-fu { display: none; flex-direction: column; min-height: 0; flex: 1; }
+  .hm-side.followups .hm-fu { display: flex; }
+  .hm-side.followups .hm-filters, .hm-side.followups .hm-sel, .hm-side.followups .hm-list, .hm-side.followups .area-note { display: none !important; }
+  .fu-chart { position: absolute; inset: 0; z-index: 450; background: var(--bg); display: flex; flex-direction: column; }
+  .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
+  .fu-mermaid { flex: 1; overflow: auto; padding: 16px; }
+  .fu-mermaid svg { max-width: 100%; height: auto; }
+  .fu-mermaid .node { cursor: pointer; }
+  .fu-mermaid .node rect, .fu-mermaid .node polygon, .fu-mermaid .node circle { stroke-width: 1.5px !important; }
+  .fu-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
+  .fu-row:hover { background: var(--paper-2); }
+  .fu-row .nm { font-weight: 700; font-size: 14.5px; }
+  .fu-row .meta { font-size: 12.5px; color: var(--mute); margin-top: 2px; }
+  .fu-row .next { font-size: 12.5px; font-weight: 700; margin-top: 4px; }
+  .fu-row .act { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .fu-row .act button, .fu-row .act a { font-size: 12.5px; padding: 5px 9px; }
+  .pill.wait { background: var(--paper-2); } .pill.email { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); } .pill.call { background: #DCE9FF; color: #1D4F9C; border-color: #BBD3FA; } .pill.done { background: #DFF3E7; color: #1B6B3F; border-color: #BFE5CE; }
   .pin.done { background: #2F9E62; }
   .pr.done .nm { text-decoration: line-through; opacity: .65; }
   .pr .donebtn { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); background: var(--paper); cursor: pointer; display: grid; place-items: center; color: transparent; font-size: 14px; font-weight: 800; }
@@ -499,6 +518,18 @@
       <div class="hm-tabs" role="tablist">
         <button type="button" role="tab" aria-selected="true" data-tab="prospects">Prospects</button>
         <button type="button" role="tab" aria-selected="false" data-tab="inbox">Inbox<span class="badge" id="unread-badge" hidden>0</span></button>
+        <button type="button" role="tab" aria-selected="false" data-tab="followups">Follow-ups<span class="badge" id="fu-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
+      </div>
+      <div class="hm-fu" id="hm-fu">
+        <div class="tools" style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap">
+          <select id="fu-cat" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">All industries</option></select>
+          <select id="fu-stage" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">Every step</option></select>
+        </div>
+        <div style="padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13.5px">
+          <span id="fu-summary" style="color:var(--ink-2)"></span><span class="grow"></span>
+          <button class="btn primary" type="button" id="fu-run" style="padding:7px 12px;font-size:13.5px" disabled>Run next step for shown</button>
+        </div>
+        <div class="threads" id="fu-list"></div>
       </div>
       <div class="hm-inbox" id="hm-inbox">
         <div class="tools">
@@ -511,7 +542,7 @@
         <input class="full" id="f-q" type="search" placeholder="Type a target: gas stations, dealerships, a company name…">
         <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Quick pull (up to 60)</button><button class="btn dark" type="button" id="f-sweep" style="padding:6px 12px;font-size:13px">Sweep everything</button><select id="f-sweep-scope" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px"><option value="box">in the box I drew</option><option value="25">within 25 mi</option><option value="40" selected>within 40 mi</option><option value="60">within 60 mi</option><option value="100">within 100 mi</option><option value="ga">all of Georgia</option></select></div>
         <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option><option value="60">Within 60 mi</option><option value="100">Within 100 mi</option><option value="150">Within 150 mi</option></select>
-        <div id="f-status" class="stchips" aria-label="Status filter"><button type="button" data-s="new" class="pill new" aria-pressed="false">new</button><button type="button" data-s="contacted" class="pill contacted" aria-pressed="false">contacted</button><button type="button" data-s="replied" class="pill replied" aria-pressed="false">replied</button><button type="button" data-s="customer" class="pill customer" aria-pressed="false">customer</button><button type="button" data-s="skip" class="pill skip" aria-pressed="false">skip</button></div>
+        <div id="f-status" class="stchips" aria-label="Status filter"><button type="button" data-s="new" class="pill new" aria-pressed="false">new</button><button type="button" data-s="contacted" class="pill contacted" aria-pressed="false">contacted</button><button type="button" data-s="replied" class="pill replied" aria-pressed="false">replied</button><button type="button" data-s="called" class="pill called" aria-pressed="false">called</button><button type="button" data-s="customer" class="pill customer" aria-pressed="false">customer</button><button type="button" data-s="skip" class="pill skip" aria-pressed="false">skip</button></div>
         <select id="f-city"><option value="">All cities</option></select>
         <select id="f-county"><option value="">All counties</option></select>
         <select class="full" id="f-cat"><option value="">All categories</option></select>
@@ -538,6 +569,10 @@
     </aside>
     <div class="hm-map">
       <div id="map"></div>
+      <div id="fu-chart" class="fu-chart" hidden>
+        <div class="fu-chart-head"><b id="fu-chart-title">Follow-up flow</b><span class="grow"></span><span class="note" id="fu-chart-note">Click a step to list the businesses on it.</span></div>
+        <div id="fu-mermaid" class="fu-mermaid"></div>
+      </div>
       <div class="hm-detail" id="hm-detail"></div>
     </div>
   </div>
@@ -1063,7 +1098,7 @@ document.getElementById("b-build").addEventListener("click", () => buildPdf().ca
 /* ===== Admin: login + Hit map ===== */
 const API = "https://byqzgilixiyvcxcszjrv.supabase.co/functions/v1/awl-api";
 const HQ = { lat: 33.854, lng: -84.217, name: "Atlanta Wholesale LED, Tucker" };
-const STATUSES = ["new", "contacted", "replied", "customer", "skip"];
+const STATUSES = ["new", "contacted", "replied", "called", "customer", "skip"];
 const $ = id => document.getElementById(id);
 let session = null;
 try { session = JSON.parse(localStorage.getItem("awl_session") || "null"); } catch (e) {}
@@ -1309,13 +1344,18 @@ $("act-delete").addEventListener("click", async () => {
 
 /* ---- composer ---- */
 $("act-email").addEventListener("click", openComposer);
-function openComposer() {
+function openComposer(kind) {
+  hm.composeKind = kind === "followup" ? "followup" : "initial";
   const ids = [...hm.selected]; const rows = hm.prospects.filter(p => ids.includes(p.id));
   const withEmail = rows.filter(p => p.email), without = rows.filter(p => !p.email);
   $("c-to").textContent = `${withEmail.length} recipient${withEmail.length === 1 ? "" : "s"} with an email address` + (without.length ? `. ${without.length} selected prospect${without.length === 1 ? " has" : "s have"} no email and will be skipped: ${without.slice(0, 5).map(p => p.name).join(", ")}${without.length > 5 ? "…" : ""}` : ".");
   const fill = (tpl, p) => String(tpl || "").replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, k) => (p[k] ?? ({ business: p.name, company: p.name, first_name: (p.contact_name || "").split(" ")[0] })[k] ?? ""));
-  if (rows.length === 1) { $("c-subject").value = fill(hm.template.subject, rows[0]); $("c-body").value = fill(hm.template.body, rows[0]); }
-  else { $("c-subject").value = hm.template.subject || ""; $("c-body").value = hm.template.body || ""; }
+  const tSubject = hm.composeKind === "followup" ? (hm.template.followup_subject || "") : (hm.template.subject || "");
+  const tBody = hm.composeKind === "followup" ? (hm.template.followup_body || "") : (hm.template.body || "");
+  if (rows.length === 1) { $("c-subject").value = fill(tSubject, rows[0]); $("c-body").value = fill(tBody, rows[0]); }
+  else { $("c-subject").value = tSubject; $("c-body").value = tBody; }
+  document.querySelector("#m-compose h3").textContent = hm.composeKind === "followup" ? "Send follow-up email" : "Send outreach email";
+  $("c-attach").checked = hm.composeKind !== "followup";
   hm.composeSingle = rows.length === 1 ? rows[0] : null;
   $("c-to-field").hidden = rows.length !== 1;
   if (rows.length === 1) { $("c-to-input").value = rows[0].email || ""; $("c-send").disabled = false; $("c-to-note").textContent = rows[0].email ? "" : "No email on file yet. Type one here and it saves to this business."; }
@@ -1327,7 +1367,11 @@ function openComposer() {
 }
 $("c-save").addEventListener("click", async () => {
   if (hm.composeSingle && !confirm("This draft has " + hm.composeSingle.name + "’s details filled in. Save it as the template for everyone anyway?")) return;
-  try { await api("save_template", { values: { email_subject: $("c-subject").value, email_body: $("c-body").value } }); hm.template.subject = $("c-subject").value; hm.template.body = $("c-body").value; $("c-err").textContent = "Template saved."; } catch (e) { $("c-err").textContent = e.message; }
+  try {
+    if (hm.composeKind === "followup") { await api("save_template", { values: { followup_subject: $("c-subject").value, followup_body: $("c-body").value } }); hm.template.followup_subject = $("c-subject").value; hm.template.followup_body = $("c-body").value; }
+    else { await api("save_template", { values: { email_subject: $("c-subject").value, email_body: $("c-body").value } }); hm.template.subject = $("c-subject").value; hm.template.body = $("c-body").value; }
+    $("c-err").textContent = "Template saved.";
+  } catch (e) { $("c-err").textContent = e.message; }
 });
 $("c-send").addEventListener("click", async () => {
   const btn = $("c-send"); $("c-err").textContent = "";
@@ -1347,12 +1391,12 @@ $("c-send").addEventListener("click", async () => {
   const log = $("c-log"); log.hidden = false;
   log.innerHTML = ids.map(id => `<div id="log-${id}">⏳ ${esc((hm.prospects.find(p => p.id === id) || {}).name || "")}</div>`).join("");
   try {
-    const r = await api("send", { ids, subject: $("c-subject").value, body: $("c-body").value, attach: $("c-attach").checked });
+    const r = await api("send", { ids, subject: $("c-subject").value, body: $("c-body").value, attach: $("c-attach").checked, kind: hm.composeKind });
     r.results.forEach(x => { const row = $("log-" + x.id); if (row) { row.className = x.ok ? "ok" : "bad"; row.textContent = (x.ok ? "✓ Sent to " : "✗ Failed: ") + x.name + (x.error ? " — " + x.error : ""); }
       const p = hm.prospects.find(q => q.id === x.id); if (p && x.ok) { p.status = "contacted"; p.contacted_at = p.contacted_at || new Date().toISOString(); p.last_sent_at = new Date().toISOString(); } });
     const okN = r.results.filter(x => x.ok).length, badN = r.results.length - okN;
     btn.textContent = badN ? `${okN} sent, ${badN} failed` : `✓ ${okN} sent`;
-    hm.selected.clear(); renderHitmap(); api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
+    hm.selected.clear(); renderHitmap(); api("threads").then(t => { hm.messages = t.messages; renderInbox(); if ($("hm-side").classList.contains("followups")) renderFollowups(); }).catch(() => {});
     setTimeout(() => { btn.textContent = "Send"; btn.disabled = false; }, 4000);
   } catch (e) { $("c-err").textContent = "✗ " + e.message; log.innerHTML = ""; btn.textContent = "Send"; btn.disabled = false; }
 });
@@ -1436,7 +1480,10 @@ hm.messages = []; hm.thread = null;
 document.querySelectorAll(".hm-tabs button").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll(".hm-tabs button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
   $("hm-side").classList.toggle("inbox", b.dataset.tab === "inbox");
+  $("hm-side").classList.toggle("followups", b.dataset.tab === "followups");
+  $("fu-chart").hidden = b.dataset.tab !== "followups";
   if (b.dataset.tab === "inbox") loadInbox();
+  if (b.dataset.tab === "followups") { api("threads").then(t => { hm.messages = t.messages; renderFollowups(); }).catch(() => renderFollowups()); }
 }));
 ["ib-filter", "ib-q"].forEach(id => $(id).addEventListener("input", renderInbox));
 async function loadInbox() {
@@ -1610,6 +1657,127 @@ $("au-save").addEventListener("click", async () => {
 /* keep the map fresh while the background job works */
 setInterval(() => { if (document.body.classList.contains("admin") && session && !hm.drawMode) api("list").then(d => { const prev = hm.prospects; hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null })); if (JSON.stringify(prev.map(p => [p.id, p.email, p.phone, p.contact_name])) !== JSON.stringify(hm.prospects.map(p => [p.id, p.email, p.phone, p.contact_name]))) { fillFilters(); renderHitmap(); } }).catch(() => {}); }, 90000);
 api("auto_status").then(d => { $("auto-dot").style.background = (d.config || {}).enabled ? "#2F9E62" : "#9AA3AD"; }).catch(() => {});
+
+
+/* ---- follow-ups: where every business sits in the outreach flow, and what’s next ---- */
+const FU_STAGES = {
+  none:        { label: "Nothing sent", next: "Send email", kind: "email", cls: "email" },
+  noemail:     { label: "No email on file", next: "Call", kind: "call", cls: "call" },
+  sent_wait:   { label: "Email sent, waiting", next: "Wait", kind: "wait", cls: "wait" },
+  sent_nores:  { label: "No response", next: "Send follow-up email", kind: "followup", cls: "email" },
+  fu_wait:     { label: "Follow-up sent, waiting", next: "Wait", kind: "wait", cls: "wait" },
+  fu_nores:    { label: "No response to follow-up", next: "Call", kind: "call", cls: "call" },
+  bounced:     { label: "Email bounced", next: "Call", kind: "call", cls: "call" },
+  replied:     { label: "Responded", next: "Move to call", kind: "call", cls: "call" },
+  called:      { label: "Called", next: "Follow through / mark customer or skip", kind: "done", cls: "done" },
+  customer:    { label: "Customer", next: "Done", kind: "done", cls: "done" },
+  skip:        { label: "Skipped", next: "Done", kind: "done", cls: "done" },
+};
+function fuStage(p) {
+  if (p.status === "customer") return "customer";
+  if (p.status === "skip") return "skip";
+  if (p.status === "called") return "called";
+  const outs = hm.messages.filter(m => m.prospect_id === p.id && m.direction === "out").sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const ins = hm.messages.filter(m => m.prospect_id === p.id && m.direction === "in");
+  if (ins.length || p.status === "replied") return "replied";
+  if (!outs.length) return p.email ? "none" : "noemail";
+  if (outs.some(m => /bounced|complained|failed/.test(m.status))) return "bounced";
+  const days = +(hm.template.followup_days || 3);
+  const last = outs[0]; const age = (Date.now() - new Date(last.created_at)) / 86400000;
+  const isFollowup = outs.length > 1 || last.in_reply_to === "followup";
+  if (isFollowup) return age >= days ? "fu_nores" : "fu_wait";
+  return age >= days ? "sent_nores" : "sent_wait";
+}
+function fuDays(p) { const outs = hm.messages.filter(m => m.prospect_id === p.id && m.direction === "out"); if (!outs.length) return ""; const last = outs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]; return Math.floor((Date.now() - new Date(last.created_at)) / 86400000) + "d ago"; }
+let fuSelectedStage = "";
+function renderFollowups() {
+  const cats = [...new Set(hm.prospects.map(p => p.category).filter(Boolean))].sort();
+  const sel = $("fu-cat"); const cur = sel.value; sel.innerHTML = `<option value="">All industries</option>` + cats.map(c => `<option>${esc(c)}</option>`).join(""); sel.value = cur;
+  const stSel = $("fu-stage"); const curSt = stSel.value; stSel.innerHTML = `<option value="">Every step</option>` + Object.entries(FU_STAGES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join(""); stSel.value = curSt;
+  const inCat = hm.prospects.filter(p => !sel.value || p.category === sel.value);
+  const staged = inCat.map(p => ({ p, stage: fuStage(p) }));
+  const count = k => staged.filter(x => x.stage === k).length;
+  const actionable = staged.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
+  $("fu-badge").hidden = actionable === 0; $("fu-badge").textContent = actionable;
+  // chart
+  const q = s => s.replace(/"/g, "'");
+  const title = sel.value || "All industries";
+  const def = `flowchart TD
+    IND["${q(title)}<br/>${inCat.length} businesses"] --> HAS{Email on file?}
+    HAS -- no --> NOEMAIL["No email on file: ${count("noemail")}<br/>→ Call"]
+    HAS -- yes --> SENT{Email sent?}
+    SENT -- not yet --> NONE["Nothing sent: ${count("none")}<br/>→ Send email"]
+    SENT -- yes --> RES{Responded?}
+    RES -- bounced --> BOUNCED["Bounced: ${count("bounced")}<br/>→ Call"]
+    RES -- yes --> REPLIED["Responded: ${count("replied")}<br/>→ Move to call"]
+    RES -- waiting --> SENTWAIT["Sent, waiting: ${count("sent_wait")}"]
+    RES -- no --> SENTNORES["No response: ${count("sent_nores")}<br/>→ Follow-up email"]
+    SENTNORES --> FU{Responded to follow-up?}
+    FU -- waiting --> FUWAIT["Follow-up sent, waiting: ${count("fu_wait")}"]
+    FU -- no --> FUNORES["No response: ${count("fu_nores")}<br/>→ Call"]
+    FU -- yes --> REPLIED
+    NOEMAIL --> CALLED["Called: ${count("called")}"]
+    BOUNCED --> CALLED
+    REPLIED --> CALLED
+    FUNORES --> CALLED
+    CALLED --> CUST["Customer: ${count("customer")}"]
+    CALLED --> SKIP["Skipped: ${count("skip")}"]
+    classDef email fill:#F2B705,stroke:#15202B,color:#15202B;
+    classDef call fill:#DCE9FF,stroke:#1D4F9C,color:#1D4F9C;
+    classDef wait fill:#E9ECEF,stroke:#8A94A0,color:#4A5563;
+    classDef done fill:#DFF3E7,stroke:#1B6B3F,color:#1B6B3F;
+    classDef top fill:#15202B,stroke:#15202B,color:#fff;
+    classDef sel stroke-width:4px,stroke:#15202B;
+    class IND top; class NONE,SENTNORES email; class NOEMAIL,BOUNCED,REPLIED,FUNORES call; class SENTWAIT,FUWAIT wait; class CALLED,CUST,SKIP done;${fuSelectedStage ? " class " + ({ none: "NONE", noemail: "NOEMAIL", sent_wait: "SENTWAIT", sent_nores: "SENTNORES", fu_wait: "FUWAIT", fu_nores: "FUNORES", bounced: "BOUNCED", replied: "REPLIED", called: "CALLED", customer: "CUST", skip: "SKIP" })[fuSelectedStage] + " sel;" : ""}`;
+  $("fu-chart-title").textContent = `Follow-up flow · ${title}`;
+  if (window.mermaid) {
+    mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
+    mermaid.render("fu-svg-" + Date.now(), def).then(({ svg }) => {
+      $("fu-mermaid").innerHTML = svg;
+      const map = { NONE: "none", NOEMAIL: "noemail", SENTWAIT: "sent_wait", SENTNORES: "sent_nores", FUWAIT: "fu_wait", FUNORES: "fu_nores", BOUNCED: "bounced", REPLIED: "replied", CALLED: "called", CUST: "customer", SKIP: "skip" };
+      $("fu-mermaid").querySelectorAll(".node").forEach(n => { const key = Object.keys(map).find(k => n.id.includes("-" + k + "-")); if (key) n.addEventListener("click", () => { fuSelectedStage = map[key]; $("fu-stage").value = map[key]; renderFollowups(); }); });
+    }).catch(e => { $("fu-mermaid").innerHTML = `<p class="note">Chart couldn’t render: ${esc(e.message)}</p>`; });
+  } else $("fu-mermaid").innerHTML = `<p class="note">Chart library didn’t load.</p>`;
+  // list
+  const stageFilter = $("fu-stage").value; fuSelectedStage = stageFilter;
+  const rows = staged.filter(x => !stageFilter || x.stage === stageFilter).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
+  $("fu-summary").textContent = `${rows.length} shown · ${actionable} need action in ${title}`;
+  const runnable = rows.filter(x => ["none", "sent_nores"].includes(x.stage) && x.p.email);
+  $("fu-run").disabled = !runnable.length; $("fu-run").textContent = runnable.length ? `Run next step for ${runnable.length} (send ${rows.some(x => x.stage === "none") ? "emails" : "follow-ups"})` : "Run next step for shown";
+  $("fu-list").innerHTML = rows.slice(0, 400).map(({ p, stage }) => { const st = FU_STAGES[stage]; return `
+    <div class="fu-row" data-id="${p.id}">
+      <div><div class="nm">${esc(p.name)}</div>
+        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.contact_name ? " · " + esc(p.contact_name) : ""}${p.phone ? " · " + esc(p.phone) : ""}</div>
+        <div class="next"><span class="pill ${st.cls}">${st.label}</span> ${fuDays(p) ? '<span style="color:var(--mute);font-weight:400">' + fuDays(p) + "</span> " : ""}→ ${st.next}</div></div>
+      <div class="act">
+        ${st.kind === "email" ? `<button class="btn primary" type="button" data-fu="email" data-id="${p.id}">Send email</button>` : ""}
+        ${st.kind === "followup" ? `<button class="btn primary" type="button" data-fu="followup" data-id="${p.id}">Send follow-up</button>` : ""}
+        ${st.kind === "call" && p.phone ? `<a class="btn primary" href="tel:${esc(p.phone.replace(/[^\d+]/g, ""))}">Call ${esc(p.phone)}</a>` : ""}
+        ${["call", "wait", "followup"].includes(st.kind) ? `<button class="btn ghost" type="button" data-fu="called" data-id="${p.id}">Mark called</button>` : ""}
+        ${st.kind !== "done" ? `<button class="btn ghost" type="button" data-fu="skip" data-id="${p.id}">Skip</button>` : ""}
+      </div>
+    </div>`; }).join("") || `<div class="empty" style="border:0">Nothing here.</div>`;
+}
+["fu-cat", "fu-stage"].forEach(id => $(id).addEventListener("change", () => { fuSelectedStage = $("fu-stage").value; renderFollowups(); }));
+$("fu-list").addEventListener("click", async e => {
+  const b = e.target.closest("[data-fu]");
+  if (b) {
+    const id = b.dataset.id, p = hm.prospects.find(x => x.id === id);
+    if (b.dataset.fu === "email") { hm.selected = new Set([id]); updateSel(); openComposer(); }
+    if (b.dataset.fu === "followup") { hm.selected = new Set([id]); updateSel(); openComposer("followup"); }
+    if (b.dataset.fu === "called") { await setStatus([id], "called"); renderFollowups(); }
+    if (b.dataset.fu === "skip") { await setStatus([id], "skip"); renderFollowups(); }
+    return;
+  }
+  const row = e.target.closest(".fu-row"); if (row) openDetail(row.dataset.id);
+});
+$("fu-run").addEventListener("click", () => {
+  const sel = $("fu-cat").value, stageFilter = $("fu-stage").value;
+  const rows = hm.prospects.filter(p => (!sel || p.category === sel)).map(p => ({ p, stage: fuStage(p) })).filter(x => (!stageFilter || x.stage === stageFilter) && ["none", "sent_nores"].includes(x.stage) && x.p.email);
+  if (!rows.length) return;
+  const kind = rows.every(x => x.stage === "sent_nores") ? "followup" : "initial";
+  hm.selected = new Set(rows.map(x => x.p.id)); updateSel(); openComposer(kind === "followup" ? "followup" : undefined);
+});
 
 /* ---- folders ---- */
 hm.folders = []; hm.folderItems = []; hm.folder = null;
