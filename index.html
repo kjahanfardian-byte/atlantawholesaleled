@@ -280,6 +280,8 @@
   .fu-mermaid { flex: 1; overflow: auto; padding: 16px; }
   .fu-mermaid svg { max-width: 100%; height: auto; }
   .fu-mermaid .node { cursor: pointer; }
+  .fu-mermaid .cluster rect { rx: 8; ry: 8; }
+  .fu-mermaid .cluster-label { font-weight: 700; }
   .fu-mermaid .node rect, .fu-mermaid .node polygon, .fu-mermaid .node circle { stroke-width: 1.5px !important; }
   .fu-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
   .fu-row:hover { background: var(--paper-2); }
@@ -524,6 +526,7 @@
       <div class="hm-fu" id="hm-fu">
         <div class="tools" style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap">
           <select id="fu-cat" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">All industries</option></select>
+          <select id="fu-biz" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">All businesses in this industry</option></select>
           <select id="fu-stage" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">Every step</option></select>
         </div>
         <div style="padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13.5px">
@@ -1692,58 +1695,127 @@ function fuStage(p) {
 }
 function fuDays(p) { const outs = hm.messages.filter(m => m.prospect_id === p.id && m.direction === "out"); if (!outs.length) return ""; const last = outs.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]; return Math.floor((Date.now() - new Date(last.created_at)) / 86400000) + "d ago"; }
 let fuSelectedStage = "";
+const FU_NODE = { none: "NONE", noemail: "NOEMAIL", sent_wait: "SENTWAIT", sent_nores: "SENTNORES", fu_wait: "FUWAIT", fu_nores: "FUNORES", bounced: "BOUNCED", replied: "REPLIED", called: "CALLED", customer: "CUST", skip: "SKIP" };
+const FU_LINE = `
+    classDef email fill:#F2B705,stroke:#15202B,color:#15202B;
+    classDef phone fill:#DCE9FF,stroke:#1D4F9C,color:#1D4F9C;
+    classDef wait fill:#E9ECEF,stroke:#8A94A0,color:#4A5563;
+    classDef done fill:#DFF3E7,stroke:#1B6B3F,color:#1B6B3F;
+    classDef top fill:#15202B,stroke:#15202B,color:#fff;
+    classDef biz fill:#fff,stroke:#8A94A0,color:#15202B;
+    classDef sel stroke-width:4px,stroke:#15202B;
+    classDef here fill:#F2B705,stroke:#15202B,stroke-width:4px,color:#15202B;`;
+const q = t => String(t).replace(/"/g, "'").replace(/[<>]/g, "");
+function fuTreeFor(items, idSuffix, titleLabel) {
+  /* the scenario tree with live counts for a set of businesses */
+  const count = k => items.filter(x => x.stage === k).length;
+  const S = idSuffix;
+  return `
+    IND${S}["${q(titleLabel)}<br/>${items.length} businesses"] --> HAS${S}{Email on file?}
+    HAS${S} -- no --> NOEMAIL${S}["No email: ${count("noemail")}<br/>→ Call"]
+    HAS${S} -- yes --> SENT${S}{Email sent?}
+    SENT${S} -- not yet --> NONE${S}["Nothing sent: ${count("none")}<br/>→ Send email"]
+    SENT${S} -- yes --> RES${S}{Responded?}
+    RES${S} -- bounced --> BOUNCED${S}["Bounced: ${count("bounced")}<br/>→ Call"]
+    RES${S} -- yes --> REPLIED${S}["Responded: ${count("replied")}<br/>→ Move to call"]
+    RES${S} -- waiting --> SENTWAIT${S}["Sent, waiting: ${count("sent_wait")}"]
+    RES${S} -- no --> SENTNORES${S}["No response: ${count("sent_nores")}<br/>→ Follow-up email"]
+    SENTNORES${S} --> FU${S}{Responded to follow-up?}
+    FU${S} -- waiting --> FUWAIT${S}["Follow-up sent, waiting: ${count("fu_wait")}"]
+    FU${S} -- no --> FUNORES${S}["No response: ${count("fu_nores")}<br/>→ Call"]
+    FU${S} -- yes --> REPLIED${S}
+    NOEMAIL${S} --> CALLED${S}["Called: ${count("called")}"]
+    BOUNCED${S} --> CALLED${S}
+    REPLIED${S} --> CALLED${S}
+    FUNORES${S} --> CALLED${S}
+    CALLED${S} --> CUST${S}["Customer: ${count("customer")}"]
+    CALLED${S} --> SKIP${S}["Skipped: ${count("skip")}"]
+    class IND${S} top; class NONE${S},SENTNORES${S} email; class NOEMAIL${S},BOUNCED${S},REPLIED${S},FUNORES${S} phone; class SENTWAIT${S},FUWAIT${S} wait; class CALLED${S},CUST${S},SKIP${S} done;`;
+}
+function fuDiagram(view, staged, cat, biz) {
+  if (view === "all") {
+    /* one compact tree per industry, side by side */
+    const cats = [...new Set(staged.map(x => x.p.category || "(no industry)"))].sort((a, b) => staged.filter(x => (x.p.category || "(no industry)") === b).length - staged.filter(x => (x.p.category || "(no industry)") === a).length);
+    let def = "flowchart LR\n";
+    cats.slice(0, 24).forEach((c, i) => {
+      const items = staged.filter(x => (x.p.category || "(no industry)") === c);
+      const need = items.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
+      def += `    C${i}["${q(c)}<br/>${items.length} businesses · ${need} need action"]:::top\n`;
+      def += `    C${i} --> C${i}a["Send email: ${items.filter(x => x.stage === "none").length}"]:::email\n`;
+      def += `    C${i} --> C${i}b["Follow-up: ${items.filter(x => x.stage === "sent_nores").length}"]:::email\n`;
+      def += `    C${i} --> C${i}c["Call: ${items.filter(x => ["noemail", "bounced", "replied", "fu_nores"].includes(x.stage)).length}"]:::phone\n`;
+      def += `    C${i} --> C${i}d["Waiting: ${items.filter(x => ["sent_wait", "fu_wait"].includes(x.stage)).length}"]:::wait\n`;
+      def += `    C${i} --> C${i}e["Done: ${items.filter(x => ["called", "customer", "skip"].includes(x.stage)).length}"]:::done\n`;
+    });
+    return def + FU_LINE;
+  }
+  if (view === "industry") {
+    /* this industry's tree, with the businesses grouped under the step they sit on */
+    const items = staged;
+    let def = "flowchart TD\n" + fuTreeFor(items, "", cat) + "\n";
+    const groups = {};
+    items.forEach(x => { (groups[x.stage] = groups[x.stage] || []).push(x.p); });
+    Object.entries(groups).forEach(([stage, ps]) => {
+      const node = FU_NODE[stage]; if (!node) return;
+      const label = FU_STAGES[stage].label;
+      def += `    subgraph G_${node}["${q(label)} (${ps.length})"]\n      direction TB\n`;
+      ps.slice(0, 18).forEach((p, i) => { def += `      B_${node}_${i}["${q(p.name.slice(0, 34))}"]:::biz\n`; });
+      if (ps.length > 18) def += `      B_${node}_more["+${ps.length - 18} more"]:::biz\n`;
+      def += `    end\n    ${node} --- G_${node}\n`;
+    });
+    if (fuSelectedStage && FU_NODE[fuSelectedStage]) def += `    class ${FU_NODE[fuSelectedStage]} sel;\n`;
+    return def + FU_LINE;
+  }
+  /* one business: industry -> business -> its path, with the current step lit up */
+  const p = biz.p, stage = biz.stage;
+  const path = { none: ["HAS", "SENT", "NONE"], noemail: ["HAS", "NOEMAIL"], sent_wait: ["HAS", "SENT", "RES", "SENTWAIT"], sent_nores: ["HAS", "SENT", "RES", "SENTNORES"], fu_wait: ["HAS", "SENT", "RES", "SENTNORES", "FU", "FUWAIT"], fu_nores: ["HAS", "SENT", "RES", "SENTNORES", "FU", "FUNORES"], bounced: ["HAS", "SENT", "RES", "BOUNCED"], replied: ["HAS", "SENT", "RES", "REPLIED"], called: ["HAS", "SENT", "RES", "CALLED"], customer: ["HAS", "SENT", "RES", "CALLED", "CUST"], skip: ["HAS", "SENT", "RES", "CALLED", "SKIP"] }[stage] || [];
+  const outs = hm.messages.filter(m => m.prospect_id === p.id && m.direction === "out").length, ins = hm.messages.filter(m => m.prospect_id === p.id && m.direction === "in").length;
+  let def = "flowchart TD\n";
+  def += `    IND["${q(p.category || "No industry")}"]:::top --> BIZ["${q(p.name)}<br/>${q(p.contact_name || "")}${p.contact_name ? "<br/>" : ""}${q(p.email || "no email")}${p.phone ? "<br/>" + q(p.phone) : ""}"]:::biz\n`;
+  def += `    BIZ --> HAS{Email on file?<br/>${p.email ? "yes" : "no"}}\n`;
+  def += `    HAS --> SENT{Email sent?<br/>${outs ? outs + " sent" : "not yet"}}\n`;
+  def += `    SENT --> RES{Responded?<br/>${ins ? ins + " repl" + (ins === 1 ? "y" : "ies") : "no reply yet"}}\n`;
+  def += `    HAS -.-> NOEMAIL["No email → Call"]:::phone\n    SENT -.-> NONE["Nothing sent → Send email"]:::email\n    RES -.-> BOUNCED["Bounced → Call"]:::phone\n    RES -.-> SENTWAIT["Sent, waiting"]:::wait\n    RES -.-> SENTNORES["No response → Follow-up"]:::email\n    RES -.-> REPLIED["Responded → Call"]:::phone\n    SENTNORES -.-> FU{Responded to follow-up?}\n    FU -.-> FUWAIT["Waiting"]:::wait\n    FU -.-> FUNORES["No response → Call"]:::phone\n    FU -.-> REPLIED\n    NOEMAIL -.-> CALLED["Called"]:::done\n    BOUNCED -.-> CALLED\n    REPLIED -.-> CALLED\n    FUNORES -.-> CALLED\n    CALLED -.-> CUST["Customer"]:::done\n    CALLED -.-> SKIP["Skipped"]:::done\n`;
+  path.forEach(n => { def += `    class ${n} sel;\n`; });
+  const cur = FU_NODE[stage]; if (cur) def += `    class ${cur} here;\n`;
+  def += `    NEXT["Next: ${q(FU_STAGES[stage].next)}"]:::here\n    ${cur || "BIZ"} ==> NEXT\n`;
+  return def + FU_LINE;
+}
 function renderFollowups() {
   const cats = [...new Set(hm.prospects.map(p => p.category).filter(Boolean))].sort();
   const sel = $("fu-cat"); const cur = sel.value; sel.innerHTML = `<option value="">All industries</option>` + cats.map(c => `<option>${esc(c)}</option>`).join(""); sel.value = cur;
   const stSel = $("fu-stage"); const curSt = stSel.value; stSel.innerHTML = `<option value="">Every step</option>` + Object.entries(FU_STAGES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join(""); stSel.value = curSt;
   const inCat = hm.prospects.filter(p => !sel.value || p.category === sel.value);
   const staged = inCat.map(p => ({ p, stage: fuStage(p) }));
-  const count = k => staged.filter(x => x.stage === k).length;
-  const actionable = staged.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
+  const bizSel = $("fu-biz"); const curBiz = bizSel.value;
+  bizSel.innerHTML = `<option value="">${sel.value ? "All businesses in " + esc(sel.value) : "Pick an industry first"}</option>` + (sel.value ? staged.sort((a, b) => a.p.name.localeCompare(b.p.name)).map(x => `<option value="${x.p.id}">${esc(x.p.name)} — ${FU_STAGES[x.stage].label}</option>`).join("") : "");
+  bizSel.value = curBiz; bizSel.disabled = !sel.value;
+  const biz = staged.find(x => x.p.id === bizSel.value) || null;
+  const view = biz ? "business" : (sel.value ? "industry" : "all");
+  const actionable = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length;
   $("fu-badge").hidden = actionable === 0; $("fu-badge").textContent = actionable;
-  // chart
-  const q = s => s.replace(/"/g, "'");
-  const title = sel.value || "All industries";
-  const def = `flowchart TD
-    IND["${q(title)}<br/>${inCat.length} businesses"] --> HAS{Email on file?}
-    HAS -- no --> NOEMAIL["No email on file: ${count("noemail")}<br/>→ Call"]
-    HAS -- yes --> SENT{Email sent?}
-    SENT -- not yet --> NONE["Nothing sent: ${count("none")}<br/>→ Send email"]
-    SENT -- yes --> RES{Responded?}
-    RES -- bounced --> BOUNCED["Bounced: ${count("bounced")}<br/>→ Call"]
-    RES -- yes --> REPLIED["Responded: ${count("replied")}<br/>→ Move to call"]
-    RES -- waiting --> SENTWAIT["Sent, waiting: ${count("sent_wait")}"]
-    RES -- no --> SENTNORES["No response: ${count("sent_nores")}<br/>→ Follow-up email"]
-    SENTNORES --> FU{Responded to follow-up?}
-    FU -- waiting --> FUWAIT["Follow-up sent, waiting: ${count("fu_wait")}"]
-    FU -- no --> FUNORES["No response: ${count("fu_nores")}<br/>→ Call"]
-    FU -- yes --> REPLIED
-    NOEMAIL --> CALLED["Called: ${count("called")}"]
-    BOUNCED --> CALLED
-    REPLIED --> CALLED
-    FUNORES --> CALLED
-    CALLED --> CUST["Customer: ${count("customer")}"]
-    CALLED --> SKIP["Skipped: ${count("skip")}"]
-    classDef email fill:#F2B705,stroke:#15202B,color:#15202B;
-    classDef phone fill:#DCE9FF,stroke:#1D4F9C,color:#1D4F9C;
-    classDef wait fill:#E9ECEF,stroke:#8A94A0,color:#4A5563;
-    classDef done fill:#DFF3E7,stroke:#1B6B3F,color:#1B6B3F;
-    classDef top fill:#15202B,stroke:#15202B,color:#fff;
-    classDef sel stroke-width:4px,stroke:#15202B;
-    class IND top; class NONE,SENTNORES email; class NOEMAIL,BOUNCED,REPLIED,FUNORES phone; class SENTWAIT,FUWAIT wait; class CALLED,CUST,SKIP done;${fuSelectedStage ? " class " + ({ none: "NONE", noemail: "NOEMAIL", sent_wait: "SENTWAIT", sent_nores: "SENTNORES", fu_wait: "FUWAIT", fu_nores: "FUNORES", bounced: "BOUNCED", replied: "REPLIED", called: "CALLED", customer: "CUST", skip: "SKIP" })[fuSelectedStage] + " sel;" : ""}`;
-  $("fu-chart-title").textContent = `Follow-up flow · ${title}`;
+  $("fu-chart-title").textContent = view === "all" ? "Follow-up flow · every industry" : view === "industry" ? `Follow-up flow · ${sel.value}` : `${biz.p.name} · where it is and what’s next`;
+  $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it." : view === "industry" ? "Click a step or a business name." : "Pick another business from the dropdown, or clear it to see the whole industry.";
+  const def = fuDiagram(view, staged, sel.value, biz);
   if (window.mermaid) {
-    mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
+    mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", flowchart: { useMaxWidth: false, nodeSpacing: 30, rankSpacing: 40 }, themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
     mermaid.render("fu-svg-" + Date.now(), def).then(({ svg }) => {
       $("fu-mermaid").innerHTML = svg;
-      const map = { NONE: "none", NOEMAIL: "noemail", SENTWAIT: "sent_wait", SENTNORES: "sent_nores", FUWAIT: "fu_wait", FUNORES: "fu_nores", BOUNCED: "bounced", REPLIED: "replied", CALLED: "called", CUST: "customer", SKIP: "skip" };
-      $("fu-mermaid").querySelectorAll(".node").forEach(n => { const key = Object.keys(map).find(k => n.id.includes("-" + k + "-")); if (key) n.addEventListener("click", () => { fuSelectedStage = map[key]; $("fu-stage").value = map[key]; renderFollowups(); }); });
+      const nodes = $("fu-mermaid").querySelectorAll(".node");
+      nodes.forEach(n => {
+        if (view === "all") { const m = n.id.match(/-C(\d+)(?:[a-e])?-/); if (m) { const catsSorted = [...new Set(staged.map(x => x.p.category || "(no industry)"))].sort((a, b) => staged.filter(x => (x.p.category || "(no industry)") === b).length - staged.filter(x => (x.p.category || "(no industry)") === a).length); const c = catsSorted[+m[1]]; n.addEventListener("click", () => { $("fu-cat").value = c === "(no industry)" ? "" : c; $("fu-biz").value = ""; fuSelectedStage = ""; $("fu-stage").value = ""; renderFollowups(); }); } }
+        else if (view === "industry") {
+          const b = n.id.match(/-B_([A-Z]+)_(\d+)-/);
+          if (b) { const stage = Object.keys(FU_NODE).find(k => FU_NODE[k] === b[1]); const ps = staged.filter(x => x.stage === stage).map(x => x.p); const p = ps[+b[2]]; if (p) n.addEventListener("click", () => { $("fu-biz").value = p.id; renderFollowups(); }); return; }
+          const key = Object.keys(FU_NODE).find(k => n.id.includes("-" + FU_NODE[k] + "-")); if (key) n.addEventListener("click", () => { fuSelectedStage = key; $("fu-stage").value = key; renderFollowups(); });
+        }
+      });
     }).catch(e => { $("fu-mermaid").innerHTML = `<p class="note">Chart couldn’t render: ${esc(e.message)}</p>`; });
-  } else $("fu-mermaid").innerHTML = `<p class="note">Chart library didn’t load.</p>`;
-  // list
+  }
   const stageFilter = $("fu-stage").value; fuSelectedStage = stageFilter;
-  const rows = staged.filter(x => !stageFilter || x.stage === stageFilter).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
-  $("fu-summary").textContent = `${rows.length} shown · ${actionable} need action in ${title}`;
+  const rows = staged.filter(x => (!stageFilter || x.stage === stageFilter) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
+  const needHere = staged.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
+  $("fu-summary").textContent = `${rows.length} shown · ${needHere} need action in ${sel.value || "all industries"}`;
   const runnable = rows.filter(x => ["none", "sent_nores"].includes(x.stage) && x.p.email);
   $("fu-run").disabled = !runnable.length; $("fu-run").textContent = runnable.length ? `Run next step for ${runnable.length} (send ${rows.some(x => x.stage === "none") ? "emails" : "follow-ups"})` : "Run next step for shown";
   $("fu-list").innerHTML = rows.slice(0, 400).map(({ p, stage }) => { const st = FU_STAGES[stage]; return `
@@ -1760,7 +1832,8 @@ function renderFollowups() {
       </div>
     </div>`; }).join("") || `<div class="empty" style="border:0">Nothing here.</div>`;
 }
-["fu-cat", "fu-stage"].forEach(id => $(id).addEventListener("change", () => { fuSelectedStage = $("fu-stage").value; renderFollowups(); }));
+$("fu-cat").addEventListener("change", () => { $("fu-biz").value = ""; $("fu-stage").value = ""; fuSelectedStage = ""; renderFollowups(); });
+["fu-biz", "fu-stage"].forEach(id => $(id).addEventListener("change", () => { fuSelectedStage = $("fu-stage").value; renderFollowups(); }));
 $("fu-list").addEventListener("click", async e => {
   const b = e.target.closest("[data-fu]");
   if (b) {
@@ -1775,7 +1848,8 @@ $("fu-list").addEventListener("click", async e => {
 });
 $("fu-run").addEventListener("click", () => {
   const sel = $("fu-cat").value, stageFilter = $("fu-stage").value;
-  const rows = hm.prospects.filter(p => (!sel || p.category === sel)).map(p => ({ p, stage: fuStage(p) })).filter(x => (!stageFilter || x.stage === stageFilter) && ["none", "sent_nores"].includes(x.stage) && x.p.email);
+  const bizId = $("fu-biz").value;
+  const rows = hm.prospects.filter(p => (!sel || p.category === sel) && (!bizId || p.id === bizId)).map(p => ({ p, stage: fuStage(p) })).filter(x => (!stageFilter || x.stage === stageFilter) && ["none", "sent_nores"].includes(x.stage) && x.p.email);
   if (!rows.length) return;
   const kind = rows.every(x => x.stage === "sent_nores") ? "followup" : "initial";
   hm.selected = new Set(rows.map(x => x.p.id)); updateSel(); openComposer(kind === "followup" ? "followup" : undefined);
