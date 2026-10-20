@@ -619,6 +619,16 @@
   <button type="button" data-act="delete" class="danger">Delete</button>
 </div>
 
+<div class="modal" id="m-phone" role="dialog" aria-modal="true">
+  <div class="box">
+    <h3 id="ph-name">Call</h3>
+    <p class="note" id="ph-meta"></p>
+    <div id="ph-numbers" style="display:flex;flex-direction:column;gap:8px;margin:8px 0 14px"></div>
+    <div class="field"><label for="ph-notes">Call notes</label><textarea id="ph-notes" rows="3" placeholder="What they said, who to ask for, when to call back…"></textarea></div>
+    <div class="actions"><button class="btn ghost" type="button" data-close="m-phone">Close</button><button class="btn ghost" type="button" id="ph-skip">Skip this business</button><button class="btn primary" type="button" id="ph-called">Save and mark called</button></div>
+  </div>
+</div>
+
 <div class="modal" id="m-auto" role="dialog" aria-modal="true">
   <div class="box wide">
     <h3>Auto-find contacts</h3>
@@ -1759,20 +1769,27 @@ function fuDiagram(view, staged, cat, biz) {
     return def + FU_LINE;
   }
   if (view === "industry") {
-    /* this industry's tree, with the businesses grouped under the step they sit on */
+    /* step by step: only the steps that have businesses on them, in order; businesses listed under the selected step */
     const items = staged;
-    let def = "flowchart TD\n" + fuTreeFor(items, "", cat) + "\n";
-    const groups = {};
-    items.forEach(x => { (groups[x.stage] = groups[x.stage] || []).push(x.p); });
-    Object.entries(groups).forEach(([stage, ps]) => {
-      const node = FU_NODE[stage]; if (!node) return;
-      const label = FU_STAGES[stage].label;
-      def += `    subgraph G_${node}["${fuq(label)} (${ps.length})"]\n      direction TB\n`;
-      ps.slice(0, 18).forEach((p, i) => { def += `      B_${node}_${i}["${fuq(p.name.slice(0, 34))}"]:::biz\n`; });
-      if (ps.length > 18) def += `      B_${node}_more["+${ps.length - 18} more"]:::biz\n`;
-      def += `    end\n    ${node} --- G_${node}\n`;
-    });
-    if (fuSelectedStage && FU_NODE[fuSelectedStage]) def += `    class ${FU_NODE[fuSelectedStage]} sel;\n`;
+    const n = k => items.filter(x => x.stage === k).length;
+    const main = ["none", "sent_wait", "sent_nores", "fu_wait", "fu_nores", "called", "customer"].filter(k => n(k) > 0);
+    const side = ["noemail", "bounced", "replied", "skip"].filter(k => n(k) > 0);
+    const cls = k => ({ email: "email", followup: "email", call: "phone", wait: "wait", done: "done" })[FU_STAGES[k].kind];
+    let def = "flowchart LR\n";
+    def += `    IND["${fuq(cat)}<br/>${items.length} businesses"]:::top\n`;
+    const label = k => `${FU_NODE[k]}["Step ${[...main, ...side].indexOf(k) + 1}: ${fuq(FU_STAGES[k].label)}<br/>${n(k)} business${n(k) === 1 ? "" : "es"}<br/>→ ${fuq(FU_STAGES[k].next)}"]:::${cls(k)}`;
+    let prev = "IND";
+    main.forEach(k => { def += `    ${prev} --> ${label(k)}\n`; prev = FU_NODE[k]; });
+    side.forEach(k => { const from = k === "noemail" ? "IND" : (main.includes("sent_wait") ? "SENTWAIT" : main.includes("none") ? "NONE" : "IND"); def += `    ${from} -.-> ${label(k)}\n`; if (k !== "skip" && main.includes("called")) def += `    ${FU_NODE[k]} -.-> CALLED\n`; });
+    if (!main.length && !side.length) def += `    IND --> EMPTY["No businesses here yet"]:::wait\n`;
+    const open = fuSelectedStage && n(fuSelectedStage) ? fuSelectedStage : null;
+    if (open) {
+      const ps = items.filter(x => x.stage === open).map(x => x.p);
+      def += `    subgraph G_${FU_NODE[open]}["${fuq(FU_STAGES[open].label)} · double-click a business to act"]\n      direction TB\n`;
+      ps.slice(0, 40).forEach((p, i) => { def += `      B_${FU_NODE[open]}_${i}["${fuq(p.name.slice(0, 34))}${p.phone && FU_STAGES[open].kind === "call" ? "<br/>" + fuq(p.phone) : ""}"]:::biz\n`; });
+      if (ps.length > 40) def += `      B_${FU_NODE[open]}_more["+${ps.length - 40} more (see list)"]:::biz\n`;
+      def += `    end\n    ${FU_NODE[open]} === G_${FU_NODE[open]}\n    class ${FU_NODE[open]} sel;\n`;
+    }
     return def + FU_LINE;
   }
   /* one business: industry -> business -> its path, with the current step lit up */
@@ -1804,7 +1821,7 @@ function renderFollowups() {
   const actionable = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length;
   $("fu-badge").hidden = actionable === 0; $("fu-badge").textContent = actionable;
   $("fu-chart-title").textContent = view === "all" ? "Follow-up flow · every industry" : view === "industry" ? `Follow-up flow · ${sel.value}` : `${biz.p.name} · where it is and what’s next`;
-  $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it." : view === "industry" ? "Click a step or a business name." : "Pick another business from the dropdown, or clear it to see the whole industry.";
+  $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it." : view === "industry" ? "Click a step to open its businesses; double-click a business to email or call." : "Pick another business from the dropdown, or clear it to see the whole industry.";
   const def = fuDiagram(view, staged, sel.value, biz);
   if (window.mermaid) {
     mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", flowchart: { useMaxWidth: false, nodeSpacing: 30, rankSpacing: 40 }, themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
@@ -1816,9 +1833,10 @@ function renderFollowups() {
         if (view === "all") { const m = n.id.match(/-C(\d+)(?:[a-e])?-/); if (m) { const catsSorted = [...new Set(staged.map(x => x.p.category || "(no industry)"))].sort((a, b) => staged.filter(x => (x.p.category || "(no industry)") === b).length - staged.filter(x => (x.p.category || "(no industry)") === a).length); const c = catsSorted[+m[1]]; n.addEventListener("click", () => { $("fu-cat").value = c === "(no industry)" ? "" : c; $("fu-biz").value = ""; fuSelectedStage = ""; $("fu-stage").value = ""; renderFollowups(); }); } }
         else if (view === "industry") {
           const b = n.id.match(/-B_([A-Z]+)_(\d+)-/);
-          if (b) { const stage = Object.keys(FU_NODE).find(k => FU_NODE[k] === b[1]); const ps = staged.filter(x => x.stage === stage).map(x => x.p); const p = ps[+b[2]]; if (p) n.addEventListener("click", () => { $("fu-biz").value = p.id; renderFollowups(); }); return; }
-          const key = Object.keys(FU_NODE).find(k => n.id.includes("-" + FU_NODE[k] + "-")); if (key) n.addEventListener("click", () => { fuSelectedStage = key; $("fu-stage").value = key; renderFollowups(); });
+          if (b) { const stage = Object.keys(FU_NODE).find(k => FU_NODE[k] === b[1]); const ps = staged.filter(x => x.stage === stage).map(x => x.p); const p = ps[+b[2]]; if (p) { n.addEventListener("dblclick", e => { e.preventDefault(); fuAct(p, stage); }); n.addEventListener("click", () => { hm.active = p.id; }); } return; }
+          const key = Object.keys(FU_NODE).find(k => n.id.includes("-" + FU_NODE[k] + "-")); if (key) n.addEventListener("click", () => { fuSelectedStage = fuSelectedStage === key ? "" : key; $("fu-stage").value = fuSelectedStage; renderFollowups(); });
         }
+        else if (view === "business") { n.addEventListener("dblclick", e => { e.preventDefault(); fuAct(biz.p, biz.stage); }); }
       });
     }).catch(e => { $("fu-mermaid").innerHTML = `<p class="note">Chart couldn’t render: ${esc(e.message)}</p>`; });
   }
@@ -1836,7 +1854,7 @@ function renderFollowups() {
       <div class="act">
         ${st.kind === "email" ? `<button class="btn primary" type="button" data-fu="email" data-id="${p.id}">Send email</button>` : ""}
         ${st.kind === "followup" ? `<button class="btn primary" type="button" data-fu="followup" data-id="${p.id}">Send follow-up</button>` : ""}
-        ${st.kind === "call" && p.phone ? `<a class="btn primary" href="tel:${esc(p.phone.replace(/[^\d+]/g, ""))}">Call ${esc(p.phone)}</a>` : ""}
+        ${st.kind === "call" ? `<button class="btn primary" type="button" data-fu="phone" data-id="${p.id}">${p.phone ? "Call " + esc(p.phone) : "Call (no number)"}</button>` : ""}
         ${["call", "wait", "followup"].includes(st.kind) ? `<button class="btn ghost" type="button" data-fu="called" data-id="${p.id}">Mark called</button>` : ""}
         ${st.kind !== "done" ? `<button class="btn ghost" type="button" data-fu="skip" data-id="${p.id}">Skip</button>` : ""}
       </div>
@@ -1850,6 +1868,7 @@ $("fu-list").addEventListener("click", async e => {
     const id = b.dataset.id, p = hm.prospects.find(x => x.id === id);
     if (b.dataset.fu === "email") { hm.selected = new Set([id]); updateSel(); openComposer(); }
     if (b.dataset.fu === "followup") { hm.selected = new Set([id]); updateSel(); openComposer("followup"); }
+    if (b.dataset.fu === "phone") { openPhone(p); }
     if (b.dataset.fu === "called") { await setStatus([id], "called"); renderFollowups(); }
     if (b.dataset.fu === "skip") { await setStatus([id], "skip"); renderFollowups(); }
     return;
@@ -1865,6 +1884,38 @@ $("fu-run").addEventListener("click", () => {
   hm.selected = new Set(rows.map(x => x.p.id)); updateSel(); openComposer(kind === "followup" ? "followup" : undefined);
 });
 
+
+
+/* act on a business according to where it is: email steps open the composer, call steps open the phone card */
+function fuAct(p, stage) {
+  const kind = FU_STAGES[stage].kind;
+  if (kind === "email") { hm.selected = new Set([p.id]); updateSel(); openComposer(); return; }
+  if (kind === "followup") { hm.selected = new Set([p.id]); updateSel(); openComposer("followup"); return; }
+  if (kind === "call" || kind === "wait" || kind === "done") openPhone(p);
+}
+let phoneTarget = null;
+function openPhone(p) {
+  phoneTarget = p;
+  $("ph-name").textContent = p.name;
+  $("ph-meta").textContent = [p.category, p.city, p.contact_name ? p.contact_name + (p.contact_title ? ", " + p.contact_title : "") : "", p.email].filter(Boolean).join(" · ");
+  const nums = [];
+  if (p.phone) nums.push({ label: "Business", n: p.phone });
+  if (p.contact_phone && p.contact_phone !== p.phone) nums.push({ label: p.contact_name ? p.contact_name.split(" ")[0] + "’s direct" : "Direct", n: p.contact_phone });
+  $("ph-numbers").innerHTML = nums.length ? nums.map(x => `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:22px;font-weight:800;letter-spacing:-.01em">${esc(x.n)}</span><span class="note" style="margin:0">${esc(x.label)}</span><span class="grow"></span><a class="btn primary" href="tel:${esc(x.n.replace(/[^\d+]/g, ""))}" style="padding:8px 14px">Call</a><a class="btn ghost" href="${smsLink({ ...p, phone: x.n })}" style="padding:8px 14px">Text</a></div>`).join("") : `<p class="note">No phone number on file. Add one on the business’s detail card.</p>`;
+  $("ph-notes").value = "";
+  openModal("m-phone");
+}
+$("ph-called").addEventListener("click", async () => {
+  if (!phoneTarget) return;
+  const notes = $("ph-notes").value.trim();
+  try {
+    const fields = { status: "called" }; if (notes) fields.notes = [phoneTarget.notes, new Date().toLocaleDateString() + " call: " + notes].filter(Boolean).join("\n");
+    const r = await api("update", { id: phoneTarget.id, fields }); Object.assign(phoneTarget, r.prospect, { dist: phoneTarget.dist });
+    closeModal("m-phone"); renderHitmap(); if ($("hm-side").classList.contains("followups")) renderFollowups();
+  } catch (e) { alert(e.message); }
+});
+$("ph-skip").addEventListener("click", async () => { if (!phoneTarget) return; await setStatus([phoneTarget.id], "skip"); closeModal("m-phone"); if ($("hm-side").classList.contains("followups")) renderFollowups(); });
+$("fu-list").addEventListener("dblclick", e => { const row = e.target.closest(".fu-row"); if (!row || e.target.closest("button, a")) return; const p = hm.prospects.find(x => x.id === row.dataset.id); if (p) fuAct(p, fuStage(p)); });
 
 /* ---- pan + zoom for the follow-up chart ---- */
 const fz = { k: 1, x: 0, y: 0, drag: null };
