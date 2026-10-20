@@ -275,6 +275,7 @@
   .hm-side.followups .hm-fu { display: flex; }
   .hm-side.followups .hm-filters, .hm-side.followups .hm-sel, .hm-side.followups .hm-list, .hm-side.followups .area-note { display: none !important; }
   .fu-chart { position: absolute; inset: 0; z-index: 450; background: var(--bg); display: flex; flex-direction: column; }
+  .fu-chart[hidden] { display: none; }
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-mermaid { flex: 1; overflow: auto; padding: 16px; }
   .fu-mermaid svg { max-width: 100%; height: auto; }
@@ -518,7 +519,7 @@
       <div class="hm-tabs" role="tablist">
         <button type="button" role="tab" aria-selected="true" data-tab="prospects">Prospects</button>
         <button type="button" role="tab" aria-selected="false" data-tab="inbox">Inbox<span class="badge" id="unread-badge" hidden>0</span></button>
-        <button type="button" role="tab" aria-selected="false" data-tab="followups">Follow-ups<span class="badge" id="fu-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
+        <button type="button" role="tab" aria-selected="false" data-tab="followups">Follow-ups (flow)<span class="badge" id="fu-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
       </div>
       <div class="hm-fu" id="hm-fu">
         <div class="tools" style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap">
@@ -1184,6 +1185,7 @@ async function loadProspects() {
     fillFilters(); renderHitmap();
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
     loadFolders(); pollSweeps();
+    api("threads").then(t => { hm.messages = t.messages; const n = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length; $("fu-badge").hidden = n === 0; $("fu-badge").textContent = n; }).catch(() => {});
   } catch (e) { $("hm-stats").textContent = e.message; }
 }
 function fillFilters() {
