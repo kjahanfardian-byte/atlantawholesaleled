@@ -274,7 +274,7 @@
   .hm-fu { display: none; flex-direction: column; min-height: 0; flex: 1; }
   .hm-side.followups .hm-fu { display: flex; }
   .hm-side.followups .hm-filters, .hm-side.followups .hm-sel, .hm-side.followups .hm-list, .hm-side.followups .area-note { display: none !important; }
-  .fu-chart { position: absolute; inset: 0; z-index: 450; background: var(--bg); display: flex; flex-direction: column; }
+  .fu-chart { position: absolute; inset: 0; z-index: 1100; background: var(--bg); display: flex; flex-direction: column; }
   .fu-chart[hidden] { display: none; }
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-mermaid { flex: 1; overflow: auto; padding: 16px; }
@@ -1725,12 +1725,12 @@ function renderFollowups() {
     CALLED --> CUST["Customer: ${count("customer")}"]
     CALLED --> SKIP["Skipped: ${count("skip")}"]
     classDef email fill:#F2B705,stroke:#15202B,color:#15202B;
-    classDef call fill:#DCE9FF,stroke:#1D4F9C,color:#1D4F9C;
+    classDef phone fill:#DCE9FF,stroke:#1D4F9C,color:#1D4F9C;
     classDef wait fill:#E9ECEF,stroke:#8A94A0,color:#4A5563;
     classDef done fill:#DFF3E7,stroke:#1B6B3F,color:#1B6B3F;
     classDef top fill:#15202B,stroke:#15202B,color:#fff;
     classDef sel stroke-width:4px,stroke:#15202B;
-    class IND top; class NONE,SENTNORES email; class NOEMAIL,BOUNCED,REPLIED,FUNORES call; class SENTWAIT,FUWAIT wait; class CALLED,CUST,SKIP done;${fuSelectedStage ? " class " + ({ none: "NONE", noemail: "NOEMAIL", sent_wait: "SENTWAIT", sent_nores: "SENTNORES", fu_wait: "FUWAIT", fu_nores: "FUNORES", bounced: "BOUNCED", replied: "REPLIED", called: "CALLED", customer: "CUST", skip: "SKIP" })[fuSelectedStage] + " sel;" : ""}`;
+    class IND top; class NONE,SENTNORES email; class NOEMAIL,BOUNCED,REPLIED,FUNORES phone; class SENTWAIT,FUWAIT wait; class CALLED,CUST,SKIP done;${fuSelectedStage ? " class " + ({ none: "NONE", noemail: "NOEMAIL", sent_wait: "SENTWAIT", sent_nores: "SENTNORES", fu_wait: "FUWAIT", fu_nores: "FUNORES", bounced: "BOUNCED", replied: "REPLIED", called: "CALLED", customer: "CUST", skip: "SKIP" })[fuSelectedStage] + " sel;" : ""}`;
   $("fu-chart-title").textContent = `Follow-up flow · ${title}`;
   if (window.mermaid) {
     mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
