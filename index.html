@@ -279,6 +279,17 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
+  .fu-viewport { flex: 1 1 42%; min-height: 180px; }
+  .fu-cards { flex: 1 1 58%; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: var(--paper); }
+  .fu-cards[hidden] { display: none; }
+  .fu-cards-head { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .fu-cards-grid { overflow: auto; padding: 12px 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; align-content: start; }
+  .fu-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--paper-2); cursor: pointer; user-select: none; }
+  .fu-card:hover { border-color: var(--ink); }
+  .fu-card.on { box-shadow: inset 0 0 0 2px var(--accent); }
+  .fu-card .nm { font-weight: 700; font-size: 14px; line-height: 1.25; }
+  .fu-card .meta { font-size: 12.5px; color: var(--mute); margin-top: 3px; }
+  .fu-card .who { font-size: 12.5px; color: var(--ink); margin-top: 3px; }
   .fu-mermaid { position: absolute; left: 0; top: 0; transform-origin: 0 0; padding: 16px; will-change: transform; }
   .fu-mermaid svg { max-width: none !important; height: auto; display: block; }
   .fu-zoom { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 4px; z-index: 2; }
@@ -584,6 +595,10 @@
         <div id="fu-viewport" class="fu-viewport">
           <div id="fu-mermaid" class="fu-mermaid"></div>
           <div class="fu-zoom"><button type="button" id="fz-in" title="Zoom in">+</button><button type="button" id="fz-out" title="Zoom out">−</button><button type="button" id="fz-fit" title="Fit to screen">Fit</button></div>
+        </div>
+        <div id="fu-cards" class="fu-cards" hidden>
+          <div class="fu-cards-head"><b id="fu-cards-title"></b><span class="note" id="fu-cards-note" style="margin:0">Double-click a card to email or call. Click to select.</span><span class="grow"></span><button class="btn primary" type="button" id="fu-cards-run" style="padding:7px 12px;font-size:13.5px"></button><button class="btn ghost" type="button" id="fu-cards-close" style="padding:7px 12px;font-size:13.5px">Close</button></div>
+          <div id="fu-cards-grid" class="fu-cards-grid"></div>
         </div>
       </div>
       <div class="hm-detail" id="hm-detail"></div>
@@ -1777,19 +1792,13 @@ function fuDiagram(view, staged, cat, biz) {
     const cls = k => ({ email: "email", followup: "email", call: "phone", wait: "wait", done: "done" })[FU_STAGES[k].kind];
     let def = "flowchart LR\n";
     def += `    IND["${fuq(cat)}<br/>${items.length} businesses"]:::top\n`;
+    def += `    %% steps only; the businesses for the selected step are shown as cards under the chart\n`;
     const label = k => `${FU_NODE[k]}["Step ${[...main, ...side].indexOf(k) + 1}: ${fuq(FU_STAGES[k].label)}<br/>${n(k)} business${n(k) === 1 ? "" : "es"}<br/>→ ${fuq(FU_STAGES[k].next)}"]:::${cls(k)}`;
     let prev = "IND";
     main.forEach(k => { def += `    ${prev} --> ${label(k)}\n`; prev = FU_NODE[k]; });
     side.forEach(k => { const from = k === "noemail" ? "IND" : (main.includes("sent_wait") ? "SENTWAIT" : main.includes("none") ? "NONE" : "IND"); def += `    ${from} -.-> ${label(k)}\n`; if (k !== "skip" && main.includes("called")) def += `    ${FU_NODE[k]} -.-> CALLED\n`; });
     if (!main.length && !side.length) def += `    IND --> EMPTY["No businesses here yet"]:::wait\n`;
-    const open = fuSelectedStage && n(fuSelectedStage) ? fuSelectedStage : null;
-    if (open) {
-      const ps = items.filter(x => x.stage === open).map(x => x.p);
-      def += `    subgraph G_${FU_NODE[open]}["${fuq(FU_STAGES[open].label)} · double-click a business to act"]\n      direction TB\n`;
-      ps.slice(0, 40).forEach((p, i) => { def += `      B_${FU_NODE[open]}_${i}["${fuq(p.name.slice(0, 34))}${p.phone && FU_STAGES[open].kind === "call" ? "<br/>" + fuq(p.phone) : ""}"]:::biz\n`; });
-      if (ps.length > 40) def += `      B_${FU_NODE[open]}_more["+${ps.length - 40} more (see list)"]:::biz\n`;
-      def += `    end\n    ${FU_NODE[open]} === G_${FU_NODE[open]}\n    class ${FU_NODE[open]} sel;\n`;
-    }
+    if (fuSelectedStage && n(fuSelectedStage)) def += `    class ${FU_NODE[fuSelectedStage]} sel;\n`;
     return def + FU_LINE;
   }
   /* one business: industry -> business -> its path, with the current step lit up */
@@ -1841,6 +1850,18 @@ function renderFollowups() {
     }).catch(e => { $("fu-mermaid").innerHTML = `<p class="note">Chart couldn’t render: ${esc(e.message)}</p>`; });
   }
   const stageFilter = $("fu-stage").value; fuSelectedStage = stageFilter;
+  // cards under the chart: the businesses on the selected step (industry view only)
+  const cardsBox = $("fu-cards");
+  if (view === "industry" && stageFilter && staged.some(x => x.stage === stageFilter)) {
+    const ps = staged.filter(x => x.stage === stageFilter).map(x => x.p).sort((a, b) => a.name.localeCompare(b.name));
+    const st = FU_STAGES[stageFilter];
+    $("fu-cards-title").textContent = `${st.label} · ${ps.length} · next: ${st.next}`;
+    const runnable = ps.filter(p => p.email && ["email", "followup"].includes(st.kind));
+    const runBtn = $("fu-cards-run"); runBtn.hidden = !runnable.length; runBtn.textContent = st.kind === "followup" ? `Send follow-up to all ${runnable.length}` : `Send email to all ${runnable.length}`;
+    runBtn.onclick = () => { hm.selected = new Set(runnable.map(p => p.id)); updateSel(); openComposer(st.kind === "followup" ? "followup" : undefined); };
+    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}${p.phone ? " · " + esc(p.phone) : ""}</div>${p.contact_name ? `<div class="who">${esc(p.contact_name)}${p.contact_title ? ", " + esc(p.contact_title) : ""}</div>` : ""}${p.email ? `<div class="meta">${esc(p.email)}</div>` : ""}</div>`).join("");
+    cardsBox.hidden = false;
+  } else cardsBox.hidden = true;
   const rows = staged.filter(x => (!stageFilter || x.stage === stageFilter) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
   const needHere = staged.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
   $("fu-summary").textContent = `${rows.length} shown · ${needHere} need action in ${sel.value || "all industries"}`;
@@ -1916,6 +1937,11 @@ $("ph-called").addEventListener("click", async () => {
 });
 $("ph-skip").addEventListener("click", async () => { if (!phoneTarget) return; await setStatus([phoneTarget.id], "skip"); closeModal("m-phone"); if ($("hm-side").classList.contains("followups")) renderFollowups(); });
 $("fu-list").addEventListener("dblclick", e => { const row = e.target.closest(".fu-row"); if (!row || e.target.closest("button, a")) return; const p = hm.prospects.find(x => x.id === row.dataset.id); if (p) fuAct(p, fuStage(p)); });
+
+
+$("fu-cards-grid").addEventListener("click", e => { const c = e.target.closest(".fu-card"); if (!c) return; const id = c.dataset.id; hm.selected.has(id) ? hm.selected.delete(id) : hm.selected.add(id); c.classList.toggle("on", hm.selected.has(id)); updateSel(); });
+$("fu-cards-grid").addEventListener("dblclick", e => { const c = e.target.closest(".fu-card"); if (!c) return; const p = hm.prospects.find(x => x.id === c.dataset.id); if (p) fuAct(p, fuStage(p)); });
+$("fu-cards-close").addEventListener("click", () => { fuSelectedStage = ""; $("fu-stage").value = ""; renderFollowups(); });
 
 /* ---- pan + zoom for the follow-up chart ---- */
 const fz = { k: 1, x: 0, y: 0, drag: null };
