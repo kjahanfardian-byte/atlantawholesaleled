@@ -297,7 +297,7 @@
   .fu-zoom button:hover { background: var(--paper-2); }
   .fu-zoom #fz-fit { width: auto; padding: 0 10px; font-size: 13px; }
   .fu-mermaid .node { cursor: pointer; }
-  .fu-mermaid .cluster rect { rx: 8; ry: 8; }
+  .fu-mermaid .cluster rect { rx: 8; ry: 8; fill: transparent !important; stroke: var(--line) !important; }
   .fu-mermaid .cluster-label { font-weight: 700; }
   .fu-mermaid .node rect, .fu-mermaid .node polygon, .fu-mermaid .node circle { stroke-width: 1.5px !important; }
   .fu-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line-2); cursor: pointer; }
@@ -591,7 +591,15 @@
     <div class="hm-map">
       <div id="map"></div>
       <div id="fu-chart" class="fu-chart" hidden>
-        <div class="fu-chart-head"><b id="fu-chart-title">Follow-up flow</b><span class="grow"></span><span class="note" id="fu-chart-note">Click a step to list the businesses on it.</span></div>
+        <div class="fu-chart-head">
+          <button class="btn ghost" type="button" id="fu-prev" title="Previous industry" style="padding:6px 10px">◀</button>
+          <b id="fu-chart-title">Follow-up flow</b>
+          <button class="btn ghost" type="button" id="fu-next" title="Next industry" style="padding:6px 10px">▶</button>
+          <span class="note" id="fu-chart-note" style="margin:0">Click a step to list the businesses on it.</span>
+          <span class="grow"></span>
+          <div style="position:relative"><button class="btn ghost" type="button" id="fu-ind-btn" style="padding:6px 12px">Industries shown ▾</button>
+            <div id="fu-ind-menu" class="ctx" style="position:absolute;right:0;top:40px;min-width:260px;max-height:360px;overflow:auto;padding:8px"></div></div>
+        </div>
         <div id="fu-viewport" class="fu-viewport">
           <div id="fu-mermaid" class="fu-mermaid"></div>
           <div class="fu-zoom"><button type="button" id="fz-in" title="Zoom in">+</button><button type="button" id="fz-out" title="Zoom out">−</button><button type="button" id="fz-fit" title="Fit to screen">Fit</button></div>
@@ -1768,20 +1776,22 @@ function fuTreeFor(items, idSuffix, titleLabel) {
 }
 function fuDiagram(view, staged, cat, biz) {
   if (view === "all") {
-    /* one compact tree per industry, side by side */
-    const cats = [...new Set(staged.map(x => x.p.category || "(no industry)"))].sort((a, b) => staged.filter(x => (x.p.category || "(no industry)") === b).length - staged.filter(x => (x.p.category || "(no industry)") === a).length);
-    let def = "flowchart LR\n";
-    cats.slice(0, 24).forEach((c, i) => {
+    /* one column per industry, side by side */
+    const cats = fuVisibleCats(staged);
+    let def = "flowchart TD\n";
+    cats.forEach((c, i) => {
       const items = staged.filter(x => (x.p.category || "(no industry)") === c);
       const need = items.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
-      def += `    C${i}["${fuq(c)}<br/>${items.length} businesses · ${need} need action"]:::top\n`;
-      def += `    C${i} --> C${i}a["Send email: ${items.filter(x => x.stage === "none").length}"]:::email\n`;
-      def += `    C${i} --> C${i}b["Follow-up: ${items.filter(x => x.stage === "sent_nores").length}"]:::email\n`;
-      def += `    C${i} --> C${i}c["Call: ${items.filter(x => ["noemail", "bounced", "replied", "fu_nores"].includes(x.stage)).length}"]:::phone\n`;
-      def += `    C${i} --> C${i}d["Waiting: ${items.filter(x => ["sent_wait", "fu_wait"].includes(x.stage)).length}"]:::wait\n`;
-      def += `    C${i} --> C${i}e["Done: ${items.filter(x => ["called", "customer", "skip"].includes(x.stage)).length}"]:::done\n`;
+      def += `    subgraph S${i}[" "]\n      direction TB\n`;
+      def += `      C${i}["${fuq(c)}<br/>${items.length} businesses<br/>${need} need action"]:::top\n`;
+      def += `      C${i} --> C${i}a["Send email<br/>${items.filter(x => x.stage === "none").length}"]:::email\n`;
+      def += `      C${i}a --> C${i}b["Follow-up<br/>${items.filter(x => x.stage === "sent_nores").length}"]:::email\n`;
+      def += `      C${i}b --> C${i}c["Call<br/>${items.filter(x => ["noemail", "bounced", "replied", "fu_nores"].includes(x.stage)).length}"]:::phone\n`;
+      def += `      C${i}c --> C${i}e["Done<br/>${items.filter(x => ["called", "customer", "skip"].includes(x.stage)).length}"]:::done\n`;
+      def += `    end\n`;
     });
-    return def + FU_LINE;
+    if (!cats.length) def += `    NONE0["No industries selected. Open “Industries shown”."]:::wait\n`;
+    return def + FU_LINE + "\n    classDef hidden fill:none,stroke:none;";
   }
   if (view === "industry") {
     /* step by step: only the steps that have businesses on them, in order; businesses listed under the selected step */
@@ -1830,7 +1840,8 @@ function renderFollowups() {
   const actionable = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length;
   $("fu-badge").hidden = actionable === 0; $("fu-badge").textContent = actionable;
   $("fu-chart-title").textContent = view === "all" ? "Follow-up flow · every industry" : view === "industry" ? `Follow-up flow · ${sel.value}` : `${biz.p.name} · where it is and what’s next`;
-  $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it." : view === "industry" ? "Click a step to open its businesses; double-click a business to email or call." : "Pick another business from the dropdown, or clear it to see the whole industry.";
+  $("fu-prev").style.visibility = $("fu-next").style.visibility = "visible";
+  $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it, or use ◀ ▶ to step through one at a time." : view === "industry" ? "Click a step to open its businesses; double-click a business to email or call." : "Pick another business from the dropdown, or clear it to see the whole industry.";
   const def = fuDiagram(view, staged, sel.value, biz);
   if (window.mermaid) {
     mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", flowchart: { useMaxWidth: false, nodeSpacing: 30, rankSpacing: 40 }, themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
@@ -1839,7 +1850,7 @@ function renderFollowups() {
       fz.k = 1; fz.x = 0; fz.y = 0; fzApply(); requestAnimationFrame(fzFit);
       const nodes = $("fu-mermaid").querySelectorAll(".node");
       nodes.forEach(n => {
-        if (view === "all") { const m = n.id.match(/-C(\d+)(?:[a-e])?-/); if (m) { const catsSorted = [...new Set(staged.map(x => x.p.category || "(no industry)"))].sort((a, b) => staged.filter(x => (x.p.category || "(no industry)") === b).length - staged.filter(x => (x.p.category || "(no industry)") === a).length); const c = catsSorted[+m[1]]; n.addEventListener("click", () => { $("fu-cat").value = c === "(no industry)" ? "" : c; $("fu-biz").value = ""; fuSelectedStage = ""; $("fu-stage").value = ""; renderFollowups(); }); } }
+        if (view === "all") { const m = n.id.match(/-C(\d+)(?:[a-e])?-/); if (m) { const c = fuVisibleCats(staged)[+m[1]]; n.addEventListener("click", () => { $("fu-cat").value = c === "(no industry)" ? "" : c; $("fu-biz").value = ""; fuSelectedStage = ""; $("fu-stage").value = ""; renderFollowups(); }); } }
         else if (view === "industry") {
           const b = n.id.match(/-B_([A-Z]+)_(\d+)-/);
           if (b) { const stage = Object.keys(FU_NODE).find(k => FU_NODE[k] === b[1]); const ps = staged.filter(x => x.stage === stage).map(x => x.p); const p = ps[+b[2]]; if (p) { n.addEventListener("dblclick", e => { e.preventDefault(); fuAct(p, stage); }); n.addEventListener("click", () => { hm.active = p.id; }); } return; }
@@ -1906,6 +1917,37 @@ $("fu-run").addEventListener("click", () => {
 });
 
 
+
+
+/* which industries are shown in the overview (saved on this device) */
+function fuHidden() { try { return new Set(JSON.parse(localStorage.getItem("awl_fu_hidden") || "[]")); } catch (e) { return new Set(); } }
+function fuAllCats(staged) { return [...new Set(staged.map(x => x.p.category || "(no industry)"))].sort((a, b) => staged.filter(x => (x.p.category || "(no industry)") === b).length - staged.filter(x => (x.p.category || "(no industry)") === a).length); }
+function fuVisibleCats(staged) { const h = fuHidden(); return fuAllCats(staged).filter(c => !h.has(c)); }
+function fuRenderIndMenu() {
+  const staged = hm.prospects.map(p => ({ p, stage: fuStage(p) }));
+  const h = fuHidden();
+  $("fu-ind-menu").innerHTML = `<div style="display:flex;gap:10px;padding:4px 8px 8px;font-size:13px"><button class="link" type="button" data-all="1" style="background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--ink)">All</button><button class="link" type="button" data-none="1" style="background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--ink)">None</button></div>` +
+    fuAllCats(staged).map(c => `<label style="display:flex;gap:8px;align-items:center;padding:5px 8px;font-size:13.5px;cursor:pointer"><input type="checkbox" value="${esc(c)}" ${h.has(c) ? "" : "checked"}> ${esc(c)} <span style="color:var(--mute);margin-left:auto">${staged.filter(x => (x.p.category || "(no industry)") === c).length}</span></label>`).join("");
+}
+$("fu-ind-btn").addEventListener("click", e => { e.stopPropagation(); const m = $("fu-ind-menu"); if (m.classList.contains("open")) { m.classList.remove("open"); return; } fuRenderIndMenu(); m.classList.add("open"); });
+$("fu-ind-menu").addEventListener("click", e => { e.stopPropagation();
+  const staged = hm.prospects.map(p => ({ p, stage: fuStage(p) }));
+  if (e.target.dataset.all) { localStorage.setItem("awl_fu_hidden", "[]"); fuRenderIndMenu(); renderFollowups(); }
+  if (e.target.dataset.none) { localStorage.setItem("awl_fu_hidden", JSON.stringify(fuAllCats(staged))); fuRenderIndMenu(); renderFollowups(); }
+});
+$("fu-ind-menu").addEventListener("change", e => { const h = fuHidden(); if (e.target.checked) h.delete(e.target.value); else h.add(e.target.value); localStorage.setItem("awl_fu_hidden", JSON.stringify([...h])); renderFollowups(); });
+document.addEventListener("click", () => $("fu-ind-menu").classList.remove("open"));
+/* step through industries one at a time */
+function fuStep(dir) {
+  const staged = hm.prospects.map(p => ({ p, stage: fuStage(p) }));
+  const cats = fuVisibleCats(staged).map(c => c === "(no industry)" ? "" : c); if (!cats.length) return;
+  const cur = $("fu-cat").value; let i = cats.indexOf(cur);
+  i = i < 0 ? (dir > 0 ? 0 : cats.length - 1) : (i + dir + cats.length) % cats.length;
+  $("fu-cat").value = cats[i]; $("fu-biz").value = ""; $("fu-stage").value = ""; fuSelectedStage = ""; renderFollowups();
+}
+$("fu-prev").addEventListener("click", () => fuStep(-1));
+$("fu-next").addEventListener("click", () => fuStep(1));
+document.addEventListener("keydown", e => { if (!$("hm-side").classList.contains("followups") || e.target.matches("input, textarea, select")) return; if (e.key === "ArrowRight") fuStep(1); if (e.key === "ArrowLeft") fuStep(-1); });
 
 /* act on a business according to where it is: email steps open the composer, call steps open the phone card */
 function fuAct(p, stage) {
