@@ -1262,7 +1262,7 @@ function updateSourceLine(shown) {
 $("f-source-go").addEventListener("click", async () => {
   const q = $("f-q").value.trim(); if (!q) return;
   const btn = $("f-source-go"); btn.disabled = true; btn.textContent = "Searching…";
-  const payload = { query: q, category: q.replace(/\b\w/g, c => c.toUpperCase()), pages: 3 };
+  const payload = { query: q, category: canonicalCategory(q), pages: 3 };
   if (hm.area) payload.bounds = { north: hm.area.getNorth(), south: hm.area.getSouth(), east: hm.area.getEast(), west: hm.area.getWest() };
   else payload.radius_mi = +$("f-radius").value || 25;
   try {
@@ -1629,7 +1629,9 @@ setInterval(() => { if (document.body.classList.contains("admin") && session) { 
 
 /* ---- find contacts (phone, website, email) ---- */
 $("hm-enrich").addEventListener("click", async () => {
-  const pool = (hm.selected.size ? [...hm.selected] : filtered().map(p => p.id)).filter(id => { const p = hm.prospects.find(x => x.id === id); return p && (!p.email || !p.phone || !p.website || (hm.template.has_apollo_key && p.website && !p.contact_name)); });
+  const ind = currentIndustry();
+  const base = hm.selected.size ? [...hm.selected] : ($("hm-side").classList.contains("followups") ? hm.prospects.filter(p => !ind || p.category === ind) : filtered()).map(p => p.id);
+  const pool = base.filter(id => { const p = hm.prospects.find(x => x.id === id); return p && (!p.email || !p.phone || !p.website || (hm.template.has_apollo_key && p.website && !p.contact_name)); });
   if (!hm.template.has_hunter_key && pool.length > 20 && !sessionStorage.getItem("hunter_hint")) { sessionStorage.setItem("hunter_hint", "1"); if (!confirm("Tip: websites often hide their email behind a form. Adding a free Hunter.io key under Email settings roughly doubles the emails found. Continue without it for now?")) return; }
   if (!pool.length) { alert("Everything shown already has an email, phone and website."); return; }
   if (pool.length > 50 && !confirm(`Look up contacts for ${pool.length} businesses now? For big batches, Auto-find does this in the background without you waiting.`)) return;
@@ -1839,6 +1841,7 @@ function renderFollowups() {
   const view = biz ? "business" : (sel.value ? "industry" : "all");
   const actionable = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length;
   $("fu-badge").hidden = actionable === 0; $("fu-badge").textContent = actionable;
+  updateScopeBadges();
   $("fu-chart-title").textContent = view === "all" ? "Follow-up flow · every industry" : view === "industry" ? `Follow-up flow · ${sel.value}` : `${biz.p.name} · where it is and what’s next`;
   $("fu-prev").style.visibility = $("fu-next").style.visibility = "visible";
   $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it, or use ◀ ▶ to step through one at a time." : view === "industry" ? "Click a step to open its businesses; double-click a business to email or call." : "Pick another business from the dropdown, or clear it to see the whole industry.";
@@ -1948,6 +1951,19 @@ function fuStep(dir) {
 $("fu-prev").addEventListener("click", () => fuStep(-1));
 $("fu-next").addEventListener("click", () => fuStep(1));
 document.addEventListener("keydown", e => { if (!$("hm-side").classList.contains("followups") || e.target.matches("input, textarea, select")) return; if (e.key === "ArrowRight") fuStep(1); if (e.key === "ArrowLeft") fuStep(-1); });
+
+
+/* the industry currently in focus: the Follow-ups industry when that tab is open, else the Prospects category filter */
+function currentIndustry() { return $("hm-side").classList.contains("followups") ? $("fu-cat").value : $("f-cat").value; }
+/* reuse an existing industry name if the user types the same thing in different capitalization */
+function canonicalCategory(name) { const k = String(name || "").trim().toLowerCase().replace(/\s+/g, " "); const hit = [...new Set(hm.prospects.map(p => p.category).filter(Boolean))].find(c => c.toLowerCase() === k || c.toLowerCase() === k + "s" || c.toLowerCase() + "s" === k); return hit || String(name || "").trim().replace(/\b\w/g, ch => ch.toUpperCase()); }
+function updateScopeBadges() {
+  const ind = currentIndustry();
+  $("hm-discover").textContent = ind ? `Find more ${ind}` : "Find businesses";
+  $("hm-enrich").textContent = ind ? `Find contacts · ${ind}` : "Find contacts";
+}
+["f-cat", "fu-cat"].forEach(id => $(id).addEventListener("change", updateScopeBadges));
+document.querySelectorAll(".hm-tabs button").forEach(b => b.addEventListener("click", () => setTimeout(updateScopeBadges, 0)));
 
 /* act on a business according to where it is: email steps open the composer, call steps open the phone card */
 function fuAct(p, stage) {
@@ -2108,7 +2124,9 @@ function setDrawMode(on) {
 }
 /* ---- find businesses (Google Places text search) ---- */
 $("hm-discover").addEventListener("click", () => {
-  $("dv-err").textContent = ""; $("dv-q").value = ""; $("dv-cat").value = "";
+  const ind = currentIndustry();
+  $("dv-err").textContent = ""; $("dv-q").value = ind || ""; $("dv-cat").value = ind || "";
+  document.querySelector("#m-discover h3").textContent = ind ? `Find more ${ind}` : "Find businesses";
   const hasArea = !!hm.area; $("dv-where-area").disabled = !hasArea; $("dv-area-hint").textContent = hasArea ? "" : "(draw one first with the ▭ button on the map)";
   if (hasArea) $("dv-where-area").checked = true; else document.querySelector('input[name="dv-where"][value="radius"]').checked = true;
   if (!hm.template.has_places_key) $("dv-err").textContent = "No Google Places key saved. Add it under Email settings first.";
@@ -2118,7 +2136,7 @@ $("hm-discover").addEventListener("click", () => {
 $("dv-go").addEventListener("click", async () => {
   const q = $("dv-q").value.trim(); if (!q) { $("dv-err").textContent = "Type what to look for."; return; }
   const btn = $("dv-go"); btn.disabled = true; $("dv-err").textContent = "Searching Google…";
-  const payload = { query: q, category: $("dv-cat").value.trim() || null, pages: +$("dv-pages").value };
+  const payload = { query: q, category: canonicalCategory($("dv-cat").value.trim() || q), pages: +$("dv-pages").value };
   const useArea = document.querySelector('input[name="dv-where"]:checked').value === "area" && hm.area;
   if (useArea) payload.bounds = { north: hm.area.getNorth(), south: hm.area.getSouth(), east: hm.area.getEast(), west: hm.area.getWest() };
   else payload.radius_mi = +$("dv-radius").value;
@@ -2191,7 +2209,7 @@ $("f-sweep").addEventListener("click", async () => {
   const cells = gridFor(scope);
   if (!cells) { $("hm-stats").textContent = "Draw a box on the map first (▭ button), or pick a distance."; return; }
   const phrases = phrasingsFor(q);
-  const category = (phrases.length > 1 ? q : phrases[0]).replace(/\b\w/g, ch => ch.toUpperCase());
+  const category = canonicalCategory(phrases.length > 1 ? q : phrases[0]);
   const est = cells.length * phrases.length * 2;
   const label = scope === "ga" ? "all of Georgia" : scope === "box" ? "the box you drew" : `${scope} miles of Tucker`;
   if (!confirm(`Sweep ${phrases.length > 1 ? phrases.length + " phrasings of “" + q + "”" : "“" + q + "”"} across ${label}: ${cells.length} sections to start, busy ones split automatically so nothing is capped at 60. Runs in the background (about ${Math.ceil(est / 16)} min for the first pass, longer in dense areas), roughly ${est}+ Google requests. Start it?`)) return;
