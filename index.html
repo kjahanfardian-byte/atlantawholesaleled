@@ -282,21 +282,38 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
-  .snap h2 { margin: 0 0 2px; font-size: 22px; }
-  .snap .sub { color: var(--mute); font-size: 13.5px; margin-bottom: 10px; }
-  .snap .offer { font-size: 15px; line-height: 1.45; padding: 10px 12px; border-left: 4px solid var(--accent); background: var(--paper-2); border-radius: 0 8px 8px 0; margin: 10px 0 14px; }
-  .snap .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .snap h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); }
-  .snap .kv { font-size: 13.5px; line-height: 1.6; }
-  .snap .who { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; background: var(--paper-2); font-size: 13.5px; }
+  #m-snap .box { width: min(1180px, 100%); max-width: none; padding: 34px 38px 30px; }
+  .snap { font-size: 16px; line-height: 1.55; }
+  .snap h2 { margin: 0 0 6px; font-size: 30px; line-height: 1.15; letter-spacing: -.01em; }
+  .snap .sub { color: var(--mute); font-size: 15.5px; margin-bottom: 18px; }
+  .snap .dim { color: var(--mute); font-weight: 400; }
+  .snap .offer { font-size: 17.5px; line-height: 1.55; padding: 16px 20px; border-left: 5px solid var(--accent); background: var(--paper-2); border-radius: 0 10px 10px 0; margin: 0 0 26px; }
+  .snap .offer .lbl { display: block; font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); margin-bottom: 4px; }
+  .snap .grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 36px; align-items: start; }
+  .snap h4 { margin: 0 0 12px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--mute); }
+  .snap .kv + h4, .snap .tl + h4 { margin-top: 26px; }
+  .snap .kv .r { display: grid; grid-template-columns: 128px 1fr; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line-2); font-size: 16px; line-height: 1.5; }
+  .snap .kv .r:last-child { border-bottom: 0; }
+  .snap .kv .k, .snap .tl .k, .snap .who .ln .k { color: var(--mute); font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding-top: 4px; }
+  .snap .kv .v { min-width: 0; overflow-wrap: anywhere; }
+  .snap .who { border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; background: var(--paper-2); font-size: 16px; }
   .snap .who.primary { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-  .snap .who .nm { font-weight: 800; font-size: 14.5px; }
-  .snap .who .ln { color: var(--ink-2); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
-  .snap .who .tag { font-size: 11.5px; color: var(--mute); }
-  .snap .tl { font-size: 13px; color: var(--ink-2); }
-  .snap .tl div { padding: 3px 0; border-bottom: 1px dashed var(--line-2); }
-  .snap .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-  @media (max-width: 720px) { .snap .grid { grid-template-columns: 1fr; } }
+  .snap .who .hd { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .snap .who .nm { font-weight: 800; font-size: 18px; }
+  .snap .who .ttl { color: var(--ink-2); font-size: 15.5px; }
+  .snap .who .badges { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 10px; }
+  .snap .who .ln { display: grid; gap: 6px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .snap .who .ln .k { display: inline-block; width: 78px; padding-top: 0; }
+  .snap .who .tag { font-size: 13px; color: var(--mute); margin-top: 10px; }
+  .snap .cert { font-size: 13px; padding: 3px 9px; }
+  .snap .tl { font-size: 15.5px; color: var(--ink-2); }
+  .snap .tl div { padding: 7px 0; border-bottom: 1px solid var(--line-2); }
+  .snap .tl div:last-child { border-bottom: 0; }
+  .snap .tl .k { display: inline-block; width: 96px; }
+  .snap .tl.notes { white-space: pre-wrap; padding: 12px 14px; background: var(--paper-2); border-radius: 10px; border: 0; }
+  .snap .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--line-2); }
+  .snap .actions .btn { padding: 12px 20px; font-size: 16px; }
+  @media (max-width: 860px) { .snap .grid { grid-template-columns: 1fr; gap: 26px; } #m-snap .box { padding: 24px 20px; } .snap h2 { font-size: 25px; } .snap .kv .r { grid-template-columns: 100px 1fr; } }
   .scope-banner { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--ink); color: var(--paper); font-size: 13.5px; font-weight: 700; border-bottom: 3px solid var(--accent); }
   .scope-banner[hidden] { display: none; }
   .scope-banner .x { margin-left: auto; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
@@ -2430,49 +2447,55 @@ function renderSnapshot(id, p0, d) {
   const p = d.prospect; Object.assign(p0, { summary: p.summary, rating: p.rating, reviews: p.reviews, hours: p.hours });
   const stage = fuStage(p0), st = FU_STAGES[stage] || {};
   const tier = bestTier(p0);
+  const plain = s => String(s ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim(); // drop the emoji prefix on badges/tier names
   const genericRe = /^(info|sales|office|contact|hello|service|admin|orders|support|customerservice|billing|accounting|hr|jobs|careers|marketing|leasing|team|mail|help)@/i;
   const who = c => `<div class="who${c.is_primary ? " primary" : ""}">
-      <div><span class="nm">${c.name ? esc(c.name) : (c.email && genericRe.test(c.email) ? "General inbox" : "Unnamed person")}</span>${c.title ? ` · ${esc(c.title)}` : ""} <span class="cert ${esc(c.certainty)}">${certLabel(c)}</span>${c.is_primary ? ` <span class="cert" style="background:var(--accent);color:var(--accent-ink)">emails go here</span>` : ""}</div>
-      <div class="ln">${c.email ? `<span>✉ ${esc(c.email)}</span>` : ""}${c.phone ? `<span>☎ <a href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a> · direct</span>` : ""}${c.linkedin ? `<a href="${esc(c.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</div>
-      <div class="tag">from ${esc((c.sources || []).join(" + ") || "you")}${c.confidence ? " · " + c.confidence + "% confidence" : ""}${c.verified_how ? " · " + esc(c.verified_how) : ""}</div></div>`;
+      <div class="hd"><span class="nm">${c.name ? esc(c.name) : (c.email && genericRe.test(c.email) ? "General inbox" : "Unnamed person")}</span>${c.title ? `<span class="ttl">${esc(c.title)}</span>` : ""}</div>
+      <div class="badges"><span class="cert ${esc(c.certainty)}">${esc(plain(certLabel(c)))}</span>${c.is_primary ? `<span class="cert" style="background:var(--accent);color:var(--accent-ink)">Emails go here</span>` : ""}</div>
+      <div class="ln">${c.email ? `<div><span class="k">Email</span>${esc(c.email)}</div>` : ""}${c.phone ? `<div><span class="k">Direct</span><a href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a></div>` : ""}${c.linkedin ? `<div><span class="k">LinkedIn</span><a href="${esc(c.linkedin)}" target="_blank" rel="noopener">Open profile</a></div>` : ""}</div>
+      <div class="tag">From ${esc((c.sources || []).join(" + ") || "you")}${c.confidence ? " · " + c.confidence + "% confidence" : ""}${c.verified_how ? " · " + esc(c.verified_how) : ""}</div></div>`;
   const people = d.contacts.length ? d.contacts.map(who).join("") : `<p class="note" style="margin:0">No one on file yet.${hm.template.has_apollo_key ? " Press Find people to ask Apollo." : ""}</p>`;
   const sent = d.messages.filter(m => m.direction === "out"), got = d.messages.filter(m => m.direction === "in");
-  const tl = d.messages.length ? d.messages.slice(0, 8).map(m => `<div>${new Date(m.created_at).toLocaleDateString()} · ${m.direction === "out" ? "📤 Sent" : "📥 Reply"} · ${esc(m.subject || "")}${m.status && m.status !== "sent" ? " · " + esc(m.status) : ""}</div>`).join("") : `<div>No emails yet.</div>`;
+  const tl = d.messages.length ? d.messages.slice(0, 8).map(m => `<div><span class="k">${new Date(m.created_at).toLocaleDateString()}</span><b>${m.direction === "out" ? "Sent" : "Reply"}</b> · ${esc(m.subject || "")}${m.status && m.status !== "sent" ? " · " + esc(m.status) : ""}</div>`).join("") : `<div>No emails yet.</div>`;
   const site = p0.website ? (/^https?:/.test(p0.website) ? p0.website : "https://" + p0.website) : "";
+  const row = (k, v) => v ? `<div class="r"><span class="k">${k}</span><span class="v">${v}</span></div>` : "";
+  const phones = phoneLines(p0).map(l => `<a href="tel:${esc(String(l.n).replace(/[^\d+]/g, ""))}">${esc(l.n)}</a> <span class="dim">· ${esc(l.label)}</span>`).join("<br>");
+  const hoursToday = p.hours ? (() => { const parts = p.hours.split("; "); const day = new Date().toLocaleDateString("en-US", { weekday: "long" }); const hit = parts.find(x => x.startsWith(day + ":")) || parts[0]; return esc(hit) + (parts.length > 1 ? ` <span class="dim">· full week on Google</span>` : ""); })() : "";
   $("snap-body").innerHTML = `<div class="snap">
     <h2>${esc(p0.name)}</h2>
     <div class="sub">${esc(p0.category || "")}${p0.address ? " · " + esc(p0.address) : ""}${p0.city ? ", " + esc(p0.city) : ""}${p0.zip ? " " + esc(p0.zip) : ""}${p0.county ? " · " + esc(p0.county) + " County" : ""}${p0.dist ? " · " + p0.dist.toFixed(1) + " mi from Tucker" : ""}</div>
-    <div class="offer"><b>What they do:</b> ${esc(p.summary || "")}</div>
+    <div class="offer"><span class="lbl">What they do</span>${esc(p.summary || "")}</div>
     <div class="grid">
       <div>
         <h4>Business</h4>
         <div class="kv">
-          ${phoneLines(p0).map(l => `<div>☎ <a href="tel:${esc(String(l.n).replace(/[^\d+]/g, ""))}">${esc(l.n)}</a> · <b>${esc(l.label)}</b></div>`).join("")}
-          ${p0.email ? `<div>✉ ${esc(p0.email)} · <b>${esc(emailLabel(p0))}</b></div>` : `<div>✉ no email on file</div>`}
-          ${site ? `<div>🌐 <a href="${esc(site)}" target="_blank" rel="noopener">${esc(site.replace(/^https?:\/\/(www\.)?/, ""))}</a></div>` : ""}
-          ${p.rating ? `<div>⭐ ${p.rating} on Google${p.reviews ? " · " + (+p.reviews).toLocaleString() + " reviews" : ""}</div>` : ""}
-          ${p0.employees ? `<div>👥 about ${esc(String(p0.employees))} employees</div>` : ""}
-          ${p.hours ? `<div style="color:var(--mute);font-size:12.5px;margin-top:4px">🕒 ${esc(p.hours.split("; ")[0])}${p.hours.split("; ").length > 1 ? " (see Google for the week)" : ""}</div>` : ""}
-          <div style="margin-top:6px"><b>Contact strength:</b> ${TIERS[tier]}</div>
-          <div><b>Status:</b> ${esc(p0.status || "new")} · <b>Where it is:</b> ${esc(st.label || "")} → ${esc(st.next || "")}</div>
-          ${p0.contacted_at ? `<div><b>First contacted:</b> ${new Date(p0.contacted_at).toLocaleDateString()}</div>` : ""}
+          ${row("Phone", phones)}
+          ${row("Email", p0.email ? `${esc(p0.email)} <span class="dim">· ${esc(emailLabel(p0))}</span>` : `<span class="dim">no email on file</span>`)}
+          ${row("Website", site ? `<a href="${esc(site)}" target="_blank" rel="noopener">${esc(site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, ""))}</a>` : "")}
+          ${row("Google", p.rating ? `${p.rating} stars${p.reviews ? ` <span class="dim">· ${(+p.reviews).toLocaleString()} reviews</span>` : ""}` : "")}
+          ${row("Size", p0.employees ? `about ${esc(String(p0.employees))} employees` : "")}
+          ${row("Hours", hoursToday)}
+          ${row("Best contact", esc(plain(TIERS[tier])))}
+          ${row("Status", `${esc(p0.status || "new")} <span class="dim">· ${esc(st.label || "")}</span>`)}
+          ${row("Next step", esc(st.next || ""))}
+          ${row("First contacted", p0.contacted_at ? new Date(p0.contacted_at).toLocaleDateString() : "")}
         </div>
-        <h4 style="margin-top:12px">Email history · ${sent.length} sent, ${got.length} replies</h4>
+        <h4>Email history <span class="dim">· ${sent.length} sent, ${got.length} ${got.length === 1 ? "reply" : "replies"}</span></h4>
         <div class="tl">${tl}</div>
-        ${p0.notes ? `<h4 style="margin-top:12px">Notes</h4><div class="tl" style="white-space:pre-wrap">${esc(p0.notes)}</div>` : ""}
+        ${p0.notes ? `<h4>Notes</h4><div class="tl notes">${esc(p0.notes)}</div>` : ""}
       </div>
       <div>
-        <h4>People tied to this business · ${d.contacts.length}</h4>
+        <h4>People tied to this business <span class="dim">· ${d.contacts.length}</span></h4>
         ${people}
       </div>
     </div>
     <div class="actions">
       ${p0.email ? `<button class="btn primary" type="button" data-snap="email">Send email</button>` : ""}
       ${p0.phone ? `<button class="btn ghost" type="button" data-snap="call">Call</button>` : ""}
-      ${hm.template.has_apollo_key ? `<button class="btn ghost" type="button" data-snap="people">🔍 Find people</button>` : ""}
+      ${hm.template.has_apollo_key ? `<button class="btn ghost" type="button" data-snap="people">Find people</button>` : ""}
       <button class="btn ghost" type="button" data-snap="detail">Open full record</button>
       <button class="btn ghost" type="button" data-snap="map">Show on map</button>
-      <button class="btn ghost" type="button" data-snap="refresh" title="Re-pull description, rating and hours">↻ Refresh</button>
+      <button class="btn ghost" type="button" data-snap="refresh" title="Re-pull description, rating and hours">Refresh</button>
       <span class="grow"></span>
       <button class="btn ghost" type="button" data-close="m-snap">Close</button>
     </div></div>`;
