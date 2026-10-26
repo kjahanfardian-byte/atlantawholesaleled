@@ -1907,7 +1907,7 @@ function renderFollowups() {
     const runnable = ps.filter(p => p.email && ["email", "followup"].includes(st.kind));
     const runBtn = $("fu-cards-run"); runBtn.hidden = !runnable.length; runBtn.textContent = st.kind === "followup" ? `Send follow-up to all ${runnable.length}` : `Send email to all ${runnable.length}`;
     runBtn.onclick = () => { hm.selected = new Set(runnable.map(p => p.id)); updateSel(); openComposer(st.kind === "followup" ? "followup" : undefined); };
-    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span> ${certBadge(p.id)}</div>` : retryHtml(p, true)}${!p.contact_name && hm.template.has_apollo_key && p.website ? `<div class="meta" style="margin-top:4px"><button class="btn ghost" type="button" data-findppl="${p.id}" style="padding:3px 8px;font-size:12px">🔍 Find people</button></div>` : ""}</div>`).join("");
+    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span> ${certBadge(p.id)}</div>` : retryHtml(p, true)}${!p.contact_name && hm.template.has_apollo_key ? `<div class="meta" style="margin-top:4px"><button class="btn ghost" type="button" data-findppl="${p.id}" style="padding:3px 8px;font-size:12px">🔍 Find people</button></div>` : ""}</div>`).join("");
     cardsBox.hidden = false;
   } else cardsBox.hidden = true;
   const rows = staged.filter(x => (!stageFilter || matchStage(x)) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
@@ -2046,7 +2046,9 @@ document.addEventListener("click", async e => {
         const x = r.results[0] || {};
         if (x.ok && p) Object.assign(p, { email: x.email || p.email, contact_name: x.contact_name || p.contact_name, contact_title: x.contact_title || p.contact_title, contact_phone: x.contact_phone || p.contact_phone, linkedin: x.linkedin || p.linkedin, employees: x.employees || p.employees, notes: x.notes || p.notes });
         loadContactsAll(); renderHitmap(); await loadPeople(pid);
-        const box2 = document.getElementById("ppl-" + pid); if (box2 && !(await api("contacts", { prospect_id: pid })).contacts.some(c => (c.sources || []).includes("apollo"))) box2.querySelector("h5").insertAdjacentHTML("beforeend", `<span class="note" style="margin:0;text-transform:none;letter-spacing:0">Apollo has no one listed for this company</span>`);
+        const box2 = document.getElementById("ppl-" + pid);
+        const got = (await api("contacts", { prospect_id: pid })).contacts.filter(c => (c.sources || []).includes("apollo")).length;
+        if (box2) box2.querySelector("h5").insertAdjacentHTML("beforeend", `<span class="note" style="margin:0;text-transform:none;letter-spacing:0;color:${got ? "#1B6B3F" : "#B42318"}">${got ? "Apollo found " + got + " person" + (got === 1 ? "" : "s") : esc(x.apollo_note || "Apollo found no one")}</span>`);
       } catch (err) { alert(err.message); b.disabled = false; b.textContent = "🔍 Find people"; }
       return;
     }
@@ -2073,7 +2075,7 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("[data-findppl]"); if (!b) return; e.stopPropagation();
   const id = b.dataset.findppl, p = hm.prospects.find(x => x.id === id); if (!p) return;
   b.disabled = true; b.textContent = "Searching…";
-  try { const r = await api("enrich", { ids: [id], use_hunter: false, force_apollo: true }); const x = r.results[0] || {}; if (x.ok) Object.assign(p, { email: x.email || p.email, contact_name: x.contact_name || p.contact_name, contact_title: x.contact_title || p.contact_title, contact_phone: x.contact_phone || p.contact_phone, linkedin: x.linkedin || p.linkedin, notes: x.notes || p.notes }); loadContactsAll(); renderHitmap(); if ($("hm-side").classList.contains("followups")) renderFollowups(); if (!x.contact_name) b.textContent = "No one listed"; }
+  try { const r = await api("enrich", { ids: [id], use_hunter: false, force_apollo: true }); const x = r.results[0] || {}; if (x.ok) Object.assign(p, { email: x.email || p.email, contact_name: x.contact_name || p.contact_name, contact_title: x.contact_title || p.contact_title, contact_phone: x.contact_phone || p.contact_phone, linkedin: x.linkedin || p.linkedin, notes: x.notes || p.notes }); loadContactsAll(); renderHitmap(); if ($("hm-side").classList.contains("followups")) renderFollowups(); if (!x.contact_name) { b.textContent = "No one listed"; b.title = x.apollo_note || ""; const m = b.parentElement; if (m && x.apollo_note) m.insertAdjacentHTML("beforeend", `<div class="meta" style="color:#B42318">${esc(x.apollo_note)}</div>`); } }
   catch (err) { b.disabled = false; b.textContent = "🔍 Find people"; }
 });
 document.addEventListener("dblclick", e => { if (e.target.closest("[data-findppl]")) e.stopPropagation(); }, true);
