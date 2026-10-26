@@ -1294,7 +1294,7 @@ function renderHitmap() {
     <div class="pr${hm.active === p.id ? " active" : ""}${isDone(p.id) ? " done" : ""}" data-id="${p.id}">
       ${hm.folder ? `<button type="button" class="donebtn" aria-pressed="${isDone(p.id)}" title="Mark done">✓</button>` : `<input type="checkbox" ${hm.selected.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}">`}
       <div><div class="nm">${esc(p.name)}</div>
-        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.phone ? " · " + esc(p.phone) : ""}${p.contact_name ? `<br><span style="color:var(--ink);font-weight:600">${esc(p.contact_name)}</span>${p.contact_title ? ", " + esc(p.contact_title) : ""}` : ""}<br>${p.email ? esc(p.email) + ((p.notes || "").match(/Email source: ([^\n]+)/) ? ` <span style="opacity:.7">(${esc((p.notes.match(/Email source: ([^\n]+)/) || [])[1])})</span>` : "") : (p.website ? '<span class="noemail">no email found on site</span>' : '<span class="noemail">no website, no email</span>')}${p.email ? "" : retryHtml(p, true)}</div></div>
+        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${phoneLines(p).map(x => `<br>☎ ${esc(x.n)} · ${esc(x.label)}`).join("")}${p.contact_name && !p.contact_phone ? `<br><span style="color:var(--ink);font-weight:600">${esc(p.contact_name)}</span>${p.contact_title ? ", " + esc(p.contact_title) : ""}` : ""}<br>${p.email ? "✉ " + esc(p.email) + ` <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span>` : (p.website ? '<span class="noemail">no email found on site</span>' : '<span class="noemail">no website, no email</span>')}${p.email ? "" : retryHtml(p, true)}</div></div>
       <div class="right"><span class="pill ${p.status}">${p.status}</span><br>${(() => { const m = hm.messages.find(x => x.prospect_id === p.id && x.direction === "out"); if (!m) return p.dist != null ? p.dist.toFixed(1) + " mi" : ""; const bad = /bounced|complained|failed/.test(m.status); return `<span title="${m.status}" style="color:${bad ? "#B42318" : "#1B6B3F"};font-weight:700">${bad ? "✗" : "✓"} ${m.status}</span>`; })()}</div>
     </div>`).join("") || `<div class="empty" style="border:0">No prospects match these filters.</div>`;
   // markers
@@ -1355,8 +1355,9 @@ function openDetail(id) {
     ${(() => { const fs = hm.folderItems.filter(i => i.prospect_id === id).map(i => { const f = hm.folders.find(x => x.id === i.folder_id); return f ? `<span class="pill ${i.done ? "contacted" : ""}">${i.done ? "✓ " : ""}${esc(f.name)}</span>` : ""; }).join(" "); return fs ? `<div style="margin:6px 0 2px;display:flex;gap:4px;flex-wrap:wrap">${fs}</div>` : ""; })()}
     <div class="f"><label>Status</label><select id="d-status">${STATUSES.map(s => `<option ${p.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div>
     ${p.contact_name ? `<div class="f"><label>Decision-maker</label><div style="font-size:14px"><b>${esc(p.contact_name)}</b>${p.contact_title ? ", " + esc(p.contact_title) : ""}${p.contact_phone ? " · " + esc(p.contact_phone) : ""}${p.linkedin ? ` · <a href="${esc(p.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}${p.employees ? ` · ${p.employees} employees` : ""}</div></div>` : ""}
-    <div class="f"><label>Email</label><input id="d-email" value="${esc(p.email || "")}" placeholder="Add an email to include in sends">${p.email ? "" : retryHtml(p, false)}</div>
-    <div class="f"><label>Phone</label><input id="d-phone" value="${esc(p.phone || "")}"></div>
+    <div class="f"><label>Email${p.email ? " · " + esc(emailLabel(p)) : ""}</label><input id="d-email" value="${esc(p.email || "")}" placeholder="Add an email to include in sends">${p.email ? "" : retryHtml(p, false)}</div>
+    <div class="f"><label>Phone · ${esc(phoneLabel(p) || "main line")}</label><input id="d-phone" value="${esc(p.phone || "")}"></div>
+    ${p.contact_phone && p.contact_phone !== p.phone ? `<div class="f"><label>Direct line · ${esc(p.contact_name || "decision-maker")}${p.contact_title ? ", " + esc(p.contact_title) : ""}</label><input value="${esc(p.contact_phone)}" disabled></div>` : ""}
     <div class="f"><label>Website</label><input id="d-web" value="${esc(p.website || "")}"></div>
     <div class="f"><label>Category</label><input id="d-cat" value="${esc(p.category || "")}" list="cat-list"></div>
     <div class="f"><label>Address</label><input id="d-addr" value="${esc([p.address, p.city, p.zip].filter(Boolean).join(", "))}" disabled></div>
@@ -1873,7 +1874,7 @@ function renderFollowups() {
     const runnable = ps.filter(p => p.email && ["email", "followup"].includes(st.kind));
     const runBtn = $("fu-cards-run"); runBtn.hidden = !runnable.length; runBtn.textContent = st.kind === "followup" ? `Send follow-up to all ${runnable.length}` : `Send email to all ${runnable.length}`;
     runBtn.onclick = () => { hm.selected = new Set(runnable.map(p => p.id)); updateSel(); openComposer(st.kind === "followup" ? "followup" : undefined); };
-    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}${p.phone ? " · " + esc(p.phone) : ""}</div>${p.contact_name ? `<div class="who">${esc(p.contact_name)}${p.contact_title ? ", " + esc(p.contact_title) : ""}</div>` : ""}${p.email ? `<div class="meta">${esc(p.email)}</div>` : retryHtml(p, true)}</div>`).join("");
+    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span></div>` : retryHtml(p, true)}</div>`).join("");
     cardsBox.hidden = false;
   } else cardsBox.hidden = true;
   const rows = staged.filter(x => (!stageFilter || x.stage === stageFilter) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
@@ -1884,7 +1885,8 @@ function renderFollowups() {
   $("fu-list").innerHTML = rows.slice(0, 400).map(({ p, stage }) => { const st = FU_STAGES[stage]; return `
     <div class="fu-row" data-id="${p.id}">
       <div><div class="nm">${esc(p.name)}</div>
-        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}${p.contact_name ? " · " + esc(p.contact_name) : ""}${p.phone ? " · " + esc(p.phone) : ""}</div>
+        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}</div>
+        ${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} · ${esc(x.label)}</div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} · ${esc(emailLabel(p))}</div>` : ""}
         <div class="next"><span class="pill ${st.cls}">${st.label}</span> ${fuDays(p) ? '<span style="color:var(--mute);font-weight:400">' + fuDays(p) + "</span> " : ""}→ ${st.next}</div>${p.email ? "" : retryHtml(p, true)}</div>
       <div class="act">
         ${st.kind === "email" ? `<button class="btn primary" type="button" data-fu="email" data-id="${p.id}">Send email</button>` : ""}
@@ -1966,6 +1968,29 @@ function updateScopeBadges() {
 document.querySelectorAll(".hm-tabs button").forEach(b => b.addEventListener("click", () => setTimeout(updateScopeBadges, 0)));
 
 
+
+/* what each number and email is tied to */
+function phoneLabel(p) {
+  if (!p.phone) return "";
+  return p.phone === p.contact_phone && p.contact_name ? `${p.contact_name}${p.contact_title ? " (" + p.contact_title + ")" : ""}` : "main line";
+}
+function phoneLines(p) {
+  const out = [];
+  if (p.phone) out.push({ n: p.phone, label: p.phone === p.contact_phone && p.contact_name ? `${p.contact_name}${p.contact_title ? ", " + p.contact_title : ""} · direct` : "Main line (front desk / store)", kind: p.phone === p.contact_phone && p.contact_name ? "person" : "main" });
+  if (p.contact_phone && p.contact_phone !== p.phone) out.push({ n: p.contact_phone, label: `${p.contact_name || "Decision-maker"}${p.contact_title ? ", " + p.contact_title : ""} · direct / cell`, kind: "person" });
+  return out;
+}
+function emailLabel(p) {
+  if (!p.email) return "";
+  const local = p.email.split("@")[0].toLowerCase();
+  const generic = /^(info|sales|office|contact|hello|service|admin|orders|support|customerservice|billing|accounting|hr|jobs|careers|marketing|leasing|team|mail|help)$/.test(local);
+  if (p.contact_name && (p.notes || "").includes("Email source: apollo")) return `${p.contact_name}${p.contact_title ? ", " + p.contact_title : ""}`;
+  if (generic) return "general inbox";
+  const first = (p.contact_name || "").split(" ")[0].toLowerCase();
+  if (first && local.startsWith(first)) return `${p.contact_name}${p.contact_title ? ", " + p.contact_title : ""}`;
+  return "a person at the company (name unknown)";
+}
+
 /* retry the contact lookup (Google → website → Hunter → Apollo) for one business, with an attempt counter */
 async function retryLookup(id, btn) {
   const p = hm.prospects.find(x => x.id === id); if (!p) return;
@@ -1999,9 +2024,7 @@ function openPhone(p) {
   phoneTarget = p;
   $("ph-name").textContent = p.name;
   $("ph-meta").textContent = [p.category, p.city, p.contact_name ? p.contact_name + (p.contact_title ? ", " + p.contact_title : "") : "", p.email].filter(Boolean).join(" · ");
-  const nums = [];
-  if (p.phone) nums.push({ label: "Business", n: p.phone });
-  if (p.contact_phone && p.contact_phone !== p.phone) nums.push({ label: p.contact_name ? p.contact_name.split(" ")[0] + "’s direct" : "Direct", n: p.contact_phone });
+  const nums = phoneLines(p);
   $("ph-numbers").innerHTML = nums.length ? nums.map(x => `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:22px;font-weight:800;letter-spacing:-.01em">${esc(x.n)}</span><span class="note" style="margin:0">${esc(x.label)}</span><span class="grow"></span><a class="btn primary" href="tel:${esc(x.n.replace(/[^\d+]/g, ""))}" style="padding:8px 14px">Call</a><a class="btn ghost" href="${smsLink({ ...p, phone: x.n })}" style="padding:8px 14px">Text</a></div>`).join("") : `<p class="note">No phone number on file. Add one on the business’s detail card.</p>`;
   $("ph-notes").value = "";
   if (!p.email) $("ph-numbers").insertAdjacentHTML("beforeend", retryHtml(p, false));
