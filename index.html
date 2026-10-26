@@ -745,12 +745,12 @@
 <div class="modal" id="m-discover" role="dialog" aria-modal="true">
   <div class="box">
     <h3>Find businesses</h3>
-    <p class="note">Pulls businesses from Google Maps into the map, with phone and website when Google has them. Duplicates are skipped.</p>
+    <p class="note">Pulls every matching business in the area you pick into the map, with phone and website when available. Duplicates are skipped. Google pulls run in the background with no cap.</p>
     <p class="err" id="dv-err"></p>
     <div class="field"><label for="dv-q">What to look for</label><input id="dv-q" placeholder="electrical contractors, sign shops, car dealerships, warehouses…" list="dv-ideas"><datalist id="dv-ideas"><option value="electrical contractors"><option value="sign companies"><option value="property management companies"><option value="car dealerships"><option value="warehouses"><option value="general contractors"><option value="auto body shops"><option value="gyms"><option value="churches"><option value="self storage"><option value="restaurants"><option value="gas stations"><option value="hotels"><option value="schools"><option value="medical offices"><option value="manufacturing companies"><option value="lighting stores"><option value="electrical supply"><option value="parking garages"><option value="shopping centers"></datalist></div>
     <div class="row">
       <div class="field"><label for="dv-cat">Save as category</label><input id="dv-cat" placeholder="Defaults to the search words"></div>
-      <div class="field"><label for="dv-pages">How many</label><select id="dv-pages"><option value="1">Up to 20</option><option value="3" selected>Up to 60</option><option value="5">Up to 100</option></select></div>
+      <div class="field"><label>&nbsp;</label><span class="note" style="margin:0">No cap: Google is searched section by section until every match is in, Apollo page by page.</span><select id="dv-pages" hidden><option value="5" selected>5</option></select></div>
     </div>
     <div class="field"><label>Source</label>
       <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-src" value="google" checked> Google Maps (every storefront, pins and phones)</label>
@@ -759,7 +759,7 @@
     <div class="field" id="dv-size-field"><label for="dv-size">Company size (Apollo only)</label><select id="dv-size"><option value="">Any size</option><option value="1,10">1 to 10 employees</option><option value="11,50">11 to 50</option><option value="51,200">51 to 200</option><option value="201,1000">201 to 1,000</option></select></div>
     <div class="field"><label>Where</label>
       <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-where" value="area" id="dv-where-area"> The area I drew on the map <span id="dv-area-hint" class="note"></span></label>
-      <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-where" value="radius" checked> Within <select id="dv-radius" style="padding:4px 8px"><option value="5">5</option><option value="10" selected>10</option><option value="15">15</option><option value="25">25</option><option value="40">40</option></select> miles of Tucker</label>
+      <label style="font-weight:400;font-size:14px"><input type="radio" name="dv-where" value="radius" checked> Within <select id="dv-radius" style="padding:4px 8px"><option value="10">10</option><option value="25">25</option><option value="40">40</option><option value="60">60</option><option value="100">100</option><option value="150">150</option><option value="ga" selected>all of Georgia</option></select> <span id="dv-radius-suffix">miles of Tucker</span></label>
     </div>
     <div class="actions"><button class="btn ghost" type="button" data-close="m-discover">Cancel</button><button class="btn primary" type="button" id="dv-go">Search and add</button></div>
   </div>
@@ -2397,28 +2397,33 @@ $("hm-discover").addEventListener("click", () => {
   const hasArea = !!hm.area; $("dv-where-area").disabled = !hasArea; $("dv-area-hint").textContent = hasArea ? "" : "(draw one first with the ▭ button on the map)";
   if (hasArea) $("dv-where-area").checked = true; else document.querySelector('input[name="dv-where"][value="radius"]').checked = true;
   if (!hm.template.has_places_key) $("dv-err").textContent = "No Google Places key saved. Add it under Email settings first.";
+  $("dv-radius").onchange = () => { $("dv-radius-suffix").textContent = $("dv-radius").value === "ga" ? "" : "miles of Tucker"; }; $("dv-radius").onchange();
   $("dv-src-apollo").disabled = !hm.template.has_apollo_key; $("dv-apollo-hint").textContent = hm.template.has_apollo_key ? "" : "(add an Apollo key in Email settings)";
   openModal("m-discover");
 });
 $("dv-go").addEventListener("click", async () => {
   const q = $("dv-q").value.trim(); if (!q) { $("dv-err").textContent = "Type what to look for."; return; }
   const btn = $("dv-go"); btn.disabled = true; $("dv-err").textContent = "Searching Google…";
-  const payload = { query: q, category: canonicalCategory($("dv-cat").value.trim() || q), pages: +$("dv-pages").value };
+  const category = canonicalCategory($("dv-cat").value.trim() || q);
   const useArea = document.querySelector('input[name="dv-where"]:checked').value === "area" && hm.area;
-  if (useArea) payload.bounds = { north: hm.area.getNorth(), south: hm.area.getSouth(), east: hm.area.getEast(), west: hm.area.getWest() };
-  else payload.radius_mi = +$("dv-radius").value;
+  const radius = $("dv-radius").value;
+  const scope = useArea ? "box" : radius;
   const src = document.querySelector('input[name="dv-src"]:checked').value;
   try {
     if (src === "apollo") {
+      const payload = { query: q, category, pages: 5, location: scope === "ga" ? "Georgia, United States" : "Atlanta, Georgia, United States" };
       const size = $("dv-size").value; if (size) payload.sizes = [size];
-      payload.location = "Atlanta, Georgia, United States"; payload.pages = Math.min(3, Math.ceil(+$("dv-pages").value / 2));
       $("dv-err").textContent = "Searching Apollo, then placing each company on the map…";
       const r = await api("apollo_discover", payload);
       $("dv-err").textContent = `Apollo found ${r.found}, placed ${r.placed} on the map, added ${r.inserted} new.`; await loadProspects(); btn.disabled = false; return;
     }
-    const r = await api("discover", payload);
-    if (r.google_error) { $("dv-err").textContent = "Google: " + r.google_error; }
-    else { $("dv-err").textContent = `Found ${r.found}, added ${r.inserted} new (the rest were already on the map).`; await loadProspects(); }
+    // Google: queue a background sweep over the area so nothing is capped
+    const cells = gridFor(scope);
+    if (!cells) { $("dv-err").textContent = "Draw a box on the map first, or pick a distance."; btn.disabled = false; return; }
+    const phrases = phrasingsFor(q);
+    const r = await api("sweep_start", { query: q, category, phrases, cells, scope });
+    $("dv-err").textContent = `Sweep started for “${q}” (${phrases.length} phrasing${phrases.length === 1 ? "" : "s"}, ${cells.length} sections to begin with). It runs in the background and the map fills in as it goes; progress is in the Sweeps line on the left.`;
+    pollSweeps();
   } catch (e) { $("dv-err").textContent = e.message; }
   btn.disabled = false;
 });
