@@ -279,6 +279,24 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
+  .ppl { margin: 8px 0 12px; }
+  .ppl h5 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); display: flex; align-items: center; gap: 8px; }
+  .ppl .person { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; background: var(--paper-2); }
+  .ppl .person.primary { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .ppl .person .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ppl .person .nm { font-weight: 700; font-size: 14px; }
+  .ppl .person .ttl { color: var(--ink-2); font-size: 13px; }
+  .ppl .person .ln { font-size: 12.5px; color: var(--mute); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .ppl .person .ln a { color: inherit; }
+  .ppl .person .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .ppl .person .acts button { font-size: 12px; padding: 4px 9px; }
+  .cert { font-size: 11.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1px solid transparent; }
+  .cert.verified { background: #DFF3E7; color: #1B6B3F; border-color: #BFE5CE; }
+  .cert.corroborated { background: #E6F4EA; color: #1F7A3F; }
+  .cert.single { background: #FFF3C4; color: #7A5A00; }
+  .cert.generic { background: var(--paper); color: var(--mute); border-color: var(--line); }
+  .cert.unlabeled { background: var(--paper); color: var(--mute); border-color: var(--line); }
+  .src { font-size: 11px; color: var(--mute); }
   .fu-viewport { flex: 1 1 42%; min-height: 180px; }
   .fu-cards { flex: 1 1 58%; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--line); background: var(--paper); }
   .fu-cards[hidden] { display: none; }
@@ -571,6 +589,7 @@
           <label><input type="checkbox" id="f-hasemail"> Has email</label>
           <label><input type="checkbox" id="f-hasphone"> Has phone</label>
           <label><input type="checkbox" id="f-noemail"> Missing email</label>
+          <label><input type="checkbox" id="f-verified"> ✅ Verified person</label>
         </div>
       </div>
       <div class="area-note" id="sweep-progress" hidden style="display:block;background:var(--paper-2);color:var(--ink);font-weight:500;font-size:13px"></div>
@@ -648,6 +667,7 @@
     <p class="note" id="ph-meta"></p>
     <div id="ph-numbers" style="display:flex;flex-direction:column;gap:8px;margin:8px 0 14px"></div>
     <div class="field"><label for="ph-notes">Call notes</label><textarea id="ph-notes" rows="3" placeholder="What they said, who to ask for, when to call back…"></textarea></div>
+    <label style="font-size:13.5px;display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="ph-spoke"> I spoke to <b id="ph-spoke-name">the contact</b> (marks them ✅ verified)</label>
     <div class="actions"><button class="btn ghost" type="button" data-close="m-phone">Close</button><button class="btn ghost" type="button" id="ph-skip">Skip this business</button><button class="btn primary" type="button" id="ph-called">Save and mark called</button></div>
   </div>
 </div>
@@ -1229,7 +1249,7 @@ async function loadProspects() {
     hm.template = d.template; hm.loaded = true;
     fillFilters(); renderHitmap();
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
-    loadFolders(); pollSweeps();
+    loadFolders(); pollSweeps(); loadContactsAll();
     api("threads").then(t => { hm.messages = t.messages; const n = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length; $("fu-badge").hidden = n === 0; $("fu-badge").textContent = n; }).catch(() => {});
   } catch (e) { $("hm-stats").textContent = e.message; }
 }
@@ -1245,11 +1265,11 @@ function filtered() {
   return hm.prospects.filter(p =>
     (!q || [p.name, p.address, p.city, p.category, p.email, p.notes].join(" ").toLowerCase().includes(q)) &&
     (!r || (p.dist != null && p.dist <= r)) && (!hm.statuses.size || hm.statuses.has(p.status)) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat) &&
-    (!$("f-hasemail").checked || !!p.email) && (!$("f-hasphone").checked || !!p.phone) && (!$("f-noemail").checked || !p.email) &&
+    (!$("f-hasemail").checked || !!p.email) && (!$("f-hasphone").checked || !!p.phone) && (!$("f-noemail").checked || !p.email) && (!$("f-verified").checked || hm.contactsAll.some(c => c.prospect_id === p.id && c.verified)) &&
     (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))) &&
     (!hm.folder || hm.folderItems.some(it => it.folder_id === hm.folder && it.prospect_id === p.id)));
 }
-["f-q", "f-radius", "f-city", "f-county", "f-cat", "f-hasemail", "f-hasphone", "f-noemail"].forEach(id => $(id).addEventListener("input", renderHitmap));
+["f-q", "f-radius", "f-city", "f-county", "f-cat", "f-hasemail", "f-hasphone", "f-noemail", "f-verified"].forEach(id => $(id).addEventListener("input", renderHitmap));
 $("f-hasemail").addEventListener("change", e => { if (e.target.checked) $("f-noemail").checked = false; });
 $("f-noemail").addEventListener("change", e => { if (e.target.checked) $("f-hasemail").checked = false; });
 function updateSourceLine(shown) {
@@ -1354,6 +1374,7 @@ function openDetail(id) {
     <span class="pill ${p.status}">${p.status}</span>${p.contacted_at ? ` <span class="note" style="font-size:12px;color:var(--mute)">contacted ${new Date(p.contacted_at).toLocaleDateString()}</span>` : ""}
     ${(() => { const fs = hm.folderItems.filter(i => i.prospect_id === id).map(i => { const f = hm.folders.find(x => x.id === i.folder_id); return f ? `<span class="pill ${i.done ? "contacted" : ""}">${i.done ? "✓ " : ""}${esc(f.name)}</span>` : ""; }).join(" "); return fs ? `<div style="margin:6px 0 2px;display:flex;gap:4px;flex-wrap:wrap">${fs}</div>` : ""; })()}
     <div class="f"><label>Status</label><select id="d-status">${STATUSES.map(s => `<option ${p.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+    <div class="ppl" id="ppl-${p.id}"><h5>People <span class="note" style="margin:0;text-transform:none;letter-spacing:0">loading…</span></h5></div>
     ${p.contact_name ? `<div class="f"><label>Decision-maker</label><div style="font-size:14px"><b>${esc(p.contact_name)}</b>${p.contact_title ? ", " + esc(p.contact_title) : ""}${p.contact_phone ? " · " + esc(p.contact_phone) : ""}${p.linkedin ? ` · <a href="${esc(p.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}${p.employees ? ` · ${p.employees} employees` : ""}</div></div>` : ""}
     <div class="f"><label>Email${p.email ? " · " + esc(emailLabel(p)) : ""}</label><input id="d-email" value="${esc(p.email || "")}" placeholder="Add an email to include in sends">${p.email ? "" : retryHtml(p, false)}</div>
     <div class="f"><label>Phone · ${esc(phoneLabel(p) || "main line")}</label><input id="d-phone" value="${esc(p.phone || "")}"></div>
@@ -1369,7 +1390,7 @@ function openDetail(id) {
       ${p.phone ? `<a class="btn ghost" style="padding:8px 14px;font-size:14px" href="${smsLink(p)}">Text</a><a class="btn ghost" style="padding:8px 14px;font-size:14px" href="tel:${esc(p.phone.replace(/[^\d+]/g, ""))}">Call</a>` : ""}
       ${p.website ? `<a class="btn ghost" style="padding:8px 14px;font-size:14px" href="${esc(/^https?:/.test(p.website) ? p.website : "https://" + p.website)}" target="_blank" rel="noopener">Open site</a>` : ""}
     </div>`;
-  d.classList.add("open");
+  d.classList.add("open"); loadPeople(id);
   $("d-close").addEventListener("click", () => d.classList.remove("open"));
   $("d-save").addEventListener("click", async () => {
     const fields = { status: $("d-status").value, email: $("d-email").value.trim() || null, phone: $("d-phone").value.trim() || null, website: $("d-web").value.trim() || null, category: $("d-cat").value.trim() || null, notes: $("d-notes").value.trim() || null };
@@ -1874,7 +1895,7 @@ function renderFollowups() {
     const runnable = ps.filter(p => p.email && ["email", "followup"].includes(st.kind));
     const runBtn = $("fu-cards-run"); runBtn.hidden = !runnable.length; runBtn.textContent = st.kind === "followup" ? `Send follow-up to all ${runnable.length}` : `Send email to all ${runnable.length}`;
     runBtn.onclick = () => { hm.selected = new Set(runnable.map(p => p.id)); updateSel(); openComposer(st.kind === "followup" ? "followup" : undefined); };
-    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span></div>` : retryHtml(p, true)}</div>`).join("");
+    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span> ${certBadge(p.id)}</div>` : retryHtml(p, true)}</div>`).join("");
     cardsBox.hidden = false;
   } else cardsBox.hidden = true;
   const rows = staged.filter(x => (!stageFilter || x.stage === stageFilter) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
@@ -1886,7 +1907,7 @@ function renderFollowups() {
     <div class="fu-row" data-id="${p.id}">
       <div><div class="nm">${esc(p.name)}</div>
         <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}</div>
-        ${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} · ${esc(x.label)}</div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} · ${esc(emailLabel(p))}</div>` : ""}
+        ${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} · ${esc(x.label)}</div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} · ${esc(emailLabel(p))} ${certBadge(p.id)}</div>` : ""}
         <div class="next"><span class="pill ${st.cls}">${st.label}</span> ${fuDays(p) ? '<span style="color:var(--mute);font-weight:400">' + fuDays(p) + "</span> " : ""}→ ${st.next}</div>${p.email ? "" : retryHtml(p, true)}</div>
       <div class="act">
         ${st.kind === "email" ? `<button class="btn primary" type="button" data-fu="email" data-id="${p.id}">Send email</button>` : ""}
@@ -1969,6 +1990,60 @@ document.querySelectorAll(".hm-tabs button").forEach(b => b.addEventListener("cl
 
 
 
+
+/* certainty badge for the primary person, loaded once and refreshed with the list */
+hm.contactsAll = [];
+function primaryContact(pid) { return hm.contactsAll.find(c => c.prospect_id === pid && c.is_primary) || hm.contactsAll.filter(c => c.prospect_id === pid).sort((a, b) => (b.verified - a.verified))[0]; }
+function certBadge(pid) { const c = primaryContact(pid); if (!c) return ""; return `<span class="cert ${esc(c.certainty)}" style="margin-left:4px">${certLabel(c)}</span>`; }
+function loadContactsAll() { api("contacts_all").then(d => { hm.contactsAll = d.contacts || []; renderHitmap(); if ($("hm-side").classList.contains("followups")) renderFollowups(); }).catch(() => {}); }
+
+/* ---- people roster per business ---- */
+const CERT = { verified: "✅ Verified", corroborated: "🟢 Two sources agree", single: "🟡 One source", generic: "⚪ General inbox", unlabeled: "⚪ Name unknown" };
+function certLabel(c) { return CERT[c.certainty] || CERT.unlabeled; }
+function personHtml(p, c) {
+  const who = c.name ? `<span class="nm">${esc(c.name)}</span>${c.title ? `<span class="ttl">${esc(c.title)}</span>` : ""}` : `<span class="nm" style="color:var(--mute)">${c.email && /^(info|sales|office|contact|hello|service|admin|orders|support|customerservice|billing|accounting|hr|jobs|careers|marketing|leasing|team|mail|help)@/i.test(c.email) ? "General inbox" : "Unnamed person"}</span>`;
+  return `<div class="person${c.is_primary ? " primary" : ""}" data-cid="${c.id}">
+    <div class="top">${who}<span class="cert ${esc(c.certainty)}" title="${c.verified_how ? esc(c.verified_how) + (c.verified_at ? " · " + new Date(c.verified_at).toLocaleDateString() : "") : ""}">${certLabel(c)}</span>${c.is_primary ? `<span class="cert" style="background:var(--accent);color:var(--accent-ink)">emails go here</span>` : ""}</div>
+    <div class="ln">${c.email ? `<span>✉ ${esc(c.email)}</span>` : ""}${c.phone ? `<span>☎ <a href="tel:${esc(c.phone.replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a></span>` : ""}${c.linkedin ? `<a href="${esc(c.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}<span class="src">from ${esc((c.sources || []).join(" + ") || "you")}${c.confidence ? " · " + c.confidence + "%" : ""}</span></div>
+    <div class="acts">
+      ${c.verified ? `<button class="btn ghost" type="button" data-pa="unverify">Unmark verified</button>` : `<button class="btn ghost" type="button" data-pa="verify">✓ Spoke to them</button>`}
+      ${c.is_primary || !c.email ? "" : `<button class="btn ghost" type="button" data-pa="primary">Send emails here</button>`}
+      ${c.email ? `<button class="btn ghost" type="button" data-pa="email">Email</button>` : ""}
+      <button class="btn ghost" type="button" data-pa="edit">Edit</button>
+      <button class="btn ghost" type="button" data-pa="delete" style="color:#B42318">Remove</button>
+    </div></div>`;
+}
+async function loadPeople(pid) {
+  const box = document.getElementById("ppl-" + pid); if (!box) return;
+  try {
+    const d = await api("contacts", { prospect_id: pid }); const p = hm.prospects.find(x => x.id === pid);
+    box.innerHTML = `<h5>People <span class="note" style="margin:0;text-transform:none;letter-spacing:0">${d.contacts.length ? d.contacts.filter(c => c.verified).length + " verified of " + d.contacts.length : "none yet"}</span><span class="grow"></span><button class="btn ghost" type="button" data-pa="add" style="font-size:12px;padding:3px 9px">+ Add person</button></h5>` + d.contacts.map(c => personHtml(p, c)).join("") + `<div id="ppl-form-${pid}" hidden style="border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:4px"><div class="row"><div class="f"><label>Name</label><input id="pf-name"></div><div class="f"><label>Title</label><input id="pf-title" placeholder="Owner, Purchasing, PM…"></div></div><div class="row"><div class="f"><label>Email</label><input id="pf-email"></div><div class="f"><label>Phone</label><input id="pf-phone"></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:6px"><label style="font-size:13px"><input type="checkbox" id="pf-primary"> send emails here</label><label style="font-size:13px"><input type="checkbox" id="pf-verified"> I’ve spoken to them</label><span class="grow"></span><button class="btn ghost" type="button" data-pa="cancel" style="font-size:12px;padding:4px 9px">Cancel</button><button class="btn primary" type="button" data-pa="save" style="font-size:12px;padding:4px 9px">Save</button></div></div>`;
+    box.dataset.editing = "";
+  } catch (e) { box.innerHTML = `<h5>People</h5><p class="note">${esc(e.message)}</p>`; }
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-pa]"); if (!b) return;
+  const box = b.closest(".ppl"); if (!box) return; const pid = box.id.replace("ppl-", ""); const p = hm.prospects.find(x => x.id === pid);
+  const person = b.closest(".person"); const cid = person?.dataset.cid; const act = b.dataset.pa;
+  try {
+    if (act === "add") { box.dataset.editing = ""; const f = document.getElementById("ppl-form-" + pid); f.hidden = false; ["pf-name", "pf-title", "pf-email", "pf-phone"].forEach(i => $(i).value = ""); $("pf-primary").checked = false; $("pf-verified").checked = false; $("pf-name").focus(); return; }
+    if (act === "cancel") { document.getElementById("ppl-form-" + pid).hidden = true; return; }
+    if (act === "save") {
+      const contact = { id: box.dataset.editing || undefined, name: $("pf-name").value.trim(), title: $("pf-title").value.trim(), email: $("pf-email").value.trim(), phone: $("pf-phone").value.trim() };
+      if (!contact.name && !contact.email && !contact.phone) return;
+      const r = await api("contact_save", { prospect_id: pid, contact, make_primary: $("pf-primary").checked });
+      if ($("pf-verified").checked && r.contact) await api("contact_verify", { contact_id: r.contact.id, verified: true, how: "spoke on the phone" });
+      if ($("pf-primary").checked && r.contact) { const pr = await api("contact_primary", { prospect_id: pid, contact_id: r.contact.id }); if (pr.contact && p) Object.assign(p, { email: pr.contact.email, contact_name: pr.contact.name, contact_title: pr.contact.title, contact_phone: pr.contact.phone }); renderHitmap(); }
+      loadContactsAll(); await loadPeople(pid); return;
+    }
+    if (act === "edit") { const d = await api("contacts", { prospect_id: pid }); const c = d.contacts.find(x => x.id === cid); const f = document.getElementById("ppl-form-" + pid); f.hidden = false; box.dataset.editing = cid; $("pf-name").value = c.name || ""; $("pf-title").value = c.title || ""; $("pf-email").value = c.email || ""; $("pf-phone").value = c.phone || ""; $("pf-primary").checked = !!c.is_primary; $("pf-verified").checked = !!c.verified; return; }
+    if (act === "verify" || act === "unverify") { await api("contact_verify", { contact_id: cid, verified: act === "verify", how: "spoke on the phone" }); loadContactsAll(); await loadPeople(pid); return; }
+    if (act === "primary") { const r = await api("contact_primary", { prospect_id: pid, contact_id: cid }); if (r.contact && p) { Object.assign(p, { email: r.contact.email, contact_name: r.contact.name, contact_title: r.contact.title, contact_phone: r.contact.phone, linkedin: r.contact.linkedin }); renderHitmap(); openDetail(pid); } loadContactsAll(); return; }
+    if (act === "email") { const d = await api("contacts", { prospect_id: pid }); const c = d.contacts.find(x => x.id === cid); if (p && c?.email) { hm.selected = new Set([pid]); updateSel(); openComposer(); setTimeout(() => { $("c-to-input").value = c.email; }, 50); } return; }
+    if (act === "delete") { if (!confirm("Remove this person from the business?")) return; await api("contact_delete", { contact_id: cid }); loadContactsAll(); await loadPeople(pid); return; }
+  } catch (err) { alert(err.message); }
+});
+
 /* what each number and email is tied to */
 function phoneLabel(p) {
   if (!p.phone) return "";
@@ -2026,7 +2101,7 @@ function openPhone(p) {
   $("ph-meta").textContent = [p.category, p.city, p.contact_name ? p.contact_name + (p.contact_title ? ", " + p.contact_title : "") : "", p.email].filter(Boolean).join(" · ");
   const nums = phoneLines(p);
   $("ph-numbers").innerHTML = nums.length ? nums.map(x => `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:22px;font-weight:800;letter-spacing:-.01em">${esc(x.n)}</span><span class="note" style="margin:0">${esc(x.label)}</span><span class="grow"></span><a class="btn primary" href="tel:${esc(x.n.replace(/[^\d+]/g, ""))}" style="padding:8px 14px">Call</a><a class="btn ghost" href="${smsLink({ ...p, phone: x.n })}" style="padding:8px 14px">Text</a></div>`).join("") : `<p class="note">No phone number on file. Add one on the business’s detail card.</p>`;
-  $("ph-notes").value = "";
+  $("ph-notes").value = ""; $("ph-spoke").checked = false; $("ph-spoke-name").textContent = p.contact_name || "the person who answered";
   if (!p.email) $("ph-numbers").insertAdjacentHTML("beforeend", retryHtml(p, false));
   openModal("m-phone");
 }
@@ -2036,6 +2111,7 @@ $("ph-called").addEventListener("click", async () => {
   try {
     const fields = { status: "called" }; if (notes) fields.notes = [phoneTarget.notes, new Date().toLocaleDateString() + " call: " + notes].filter(Boolean).join("\n");
     const r = await api("update", { id: phoneTarget.id, fields }); Object.assign(phoneTarget, r.prospect, { dist: phoneTarget.dist });
+    if ($("ph-spoke").checked) { const d = await api("contacts", { prospect_id: phoneTarget.id }); const prim = d.contacts.find(c => c.is_primary) || d.contacts[0]; if (prim) await api("contact_verify", { contact_id: prim.id, verified: true, how: "spoke on the phone" + (notes ? ": " + notes.slice(0, 80) : "") }); else { const x = await api("contact_save", { prospect_id: phoneTarget.id, contact: { name: phoneTarget.contact_name || "", phone: phoneTarget.phone || "" } }); if (x.contact) await api("contact_verify", { contact_id: x.contact.id, verified: true, how: "spoke on the phone" }); } loadContactsAll(); }
     closeModal("m-phone"); renderHitmap(); if ($("hm-side").classList.contains("followups")) renderFollowups();
   } catch (e) { alert(e.message); }
 });
