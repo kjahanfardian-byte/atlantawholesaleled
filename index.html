@@ -280,6 +280,18 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
+  .spend { position: absolute; top: 12px; right: 12px; z-index: 1200; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px var(--drawer-shadow); width: 250px; font-size: 12.5px; }
+  .spend-hd { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line-2); font-size: 12.5px; }
+  .spend-hd button { background: none; border: 0; cursor: pointer; color: var(--mute); font-size: 14px; line-height: 1; padding: 0 4px; }
+  .spend.min #spend-body { display: none; }
+  .spend.min { width: auto; }
+  .spend .row { padding: 7px 10px; border-bottom: 1px solid var(--line-2); }
+  .spend .row:last-child { border-bottom: 0; }
+  .spend .lbl { display: flex; justify-content: space-between; font-weight: 700; }
+  .spend .sub { color: var(--mute); font-size: 11.5px; margin-top: 2px; }
+  .spend .bar { height: 5px; background: var(--paper-2); border-radius: 3px; margin-top: 5px; overflow: hidden; }
+  .spend .bar i { display: block; height: 100%; background: #2F9E62; }
+  .spend .bar i.warn { background: #F2B705; } .spend .bar i.hot { background: #B42318; }
   .marker-cluster { background: rgba(242,183,5,.35); border-radius: 50%; }
   .marker-cluster div { width: 34px; height: 34px; margin: 3px; border-radius: 50%; background: #F2B705; color: #15202B; font: 700 12.5px/34px Archivo, Arial, sans-serif; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
   .marker-cluster-medium div, .marker-cluster-large div { background: #15202B; color: #F2B705; }
@@ -629,6 +641,10 @@
     </aside>
     <div class="hm-map">
       <div id="map"></div>
+      <div id="spend" class="spend" title="Estimated from the panel’s own request counts; Google’s console lags a day">
+        <div class="spend-hd"><b>Spend · this month</b><span class="grow"></span><button type="button" id="spend-toggle" aria-label="Collapse">—</button></div>
+        <div id="spend-body"><div class="note" style="margin:0;padding:6px 0">loading…</div></div>
+      </div>
       <div id="fu-chart" class="fu-chart" hidden>
         <div class="fu-chart-head">
           <button class="btn ghost" type="button" id="fu-prev" title="Previous industry" style="padding:6px 10px">◀</button>
@@ -1270,7 +1286,7 @@ async function loadProspects() {
     hm.template = d.template; hm.loaded = true;
     fillFilters(); renderHitmap();
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
-    loadFolders(); pollSweeps(); loadContactsAll();
+    loadFolders(); pollSweeps(); loadContactsAll(); loadSpend();
     ["f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal"].forEach(id => { const el = $(id); if (el) el.checked = false; });
     api("threads").then(t => { hm.messages = t.messages; const n = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length; $("fu-badge").hidden = n === 0; $("fu-badge").textContent = n; }).catch(() => {});
   } catch (e) { $("hm-stats").textContent = e.message; }
@@ -2263,6 +2279,25 @@ $("starthere").addEventListener("click", e => {
   if (b.dataset.sh === "calls") { go("followups"); setTimeout(() => { $("fu-stage").value = "replied"; fuSelectedStage = "replied"; renderFollowups(); }, 50); }
   if (b.dataset.sh === "inbox") go("inbox");
 });
+
+
+/* ---- live spend tracker ---- */
+async function loadSpend() {
+  try {
+    const u = await api("usage");
+    const bar = (v, max) => { const pct = Math.min(100, Math.round(100 * v / max)); const cls = pct >= 90 ? "hot" : pct >= 70 ? "warn" : ""; return `<div class="bar"><i class="${cls}" style="width:${pct}%"></i></div>`; };
+    const fmt = n => (+n).toLocaleString();
+    $("spend-body").innerHTML = `
+      <div class="row"><div class="lbl"><span>Google Maps</span><span>$${u.google.est_usd_month.toFixed(2)} <span style="color:var(--mute);font-weight:400">of $${u.google.credit} credit</span></span></div><div class="sub">${fmt(u.google.requests_month)} requests this month · est. 3.5¢ per search, 2¢ per lookup</div>${bar(u.google.est_usd_month, u.google.credit)}</div>
+      <div class="row"><div class="lbl"><span>Apollo</span><span>${fmt(u.apollo.credits_month)} <span style="color:var(--mute);font-weight:400">of ${fmt(u.apollo.plan)} credits</span></span></div><div class="sub">people revealed this month (1 credit each)</div>${bar(u.apollo.credits_month, u.apollo.plan)}</div>
+      <div class="row"><div class="lbl"><span>Hunter</span><span>${fmt(u.hunter.lookups_month)} <span style="color:var(--mute);font-weight:400">of ${u.hunter.plan}</span></span></div><div class="sub">domain lookups this month</div>${bar(u.hunter.lookups_month, u.hunter.plan)}</div>
+      <div class="row"><div class="lbl"><span>Emails sent</span><span>${fmt(u.resend.sent_month)} <span style="color:var(--mute);font-weight:400">of ${fmt(u.resend.plan)}</span></span></div><div class="sub">Resend free tier, resets monthly</div>${bar(u.resend.sent_month, u.resend.plan)}</div>
+      <div class="row sub" style="color:var(--mute)">${fmt(u.prospects)} businesses on the map · updates every minute</div>`;
+  } catch (e) { $("spend-body").innerHTML = `<div class="note" style="margin:0;padding:6px 0">${esc(e.message)}</div>`; }
+}
+$("spend-toggle").addEventListener("click", () => { const m = $("spend").classList.toggle("min"); $("spend-toggle").textContent = m ? "+" : "—"; localStorage.setItem("awl_spend_min", m ? "1" : ""); });
+if (localStorage.getItem("awl_spend_min")) { $("spend").classList.add("min"); $("spend-toggle").textContent = "+"; }
+setInterval(() => { if (document.body.classList.contains("admin") && session) loadSpend(); }, 60000);
 
 /* ---- folders ---- */
 hm.folders = []; hm.folderItems = []; hm.folder = null;
