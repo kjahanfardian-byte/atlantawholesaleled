@@ -582,7 +582,7 @@
     <select id="hm-folder-open" class="btn ghost" style="padding:9px 12px;font-size:14px;max-width:220px"><option value="">Open folder…</option></select>
     <button class="btn ghost" type="button" id="hm-add">Add prospect</button>
     <button class="btn ghost" type="button" id="hm-import">Import CSV</button>
-    <button class="btn ghost" type="button" id="hm-settings">Email settings</button>
+    <button class="btn ghost" type="button" id="hm-settings">Settings</button>
     <button class="btn ghost" type="button" id="hm-site">Back to site</button>
     <button class="btn dark" type="button" id="hm-logout">Log out</button>
   </div>
@@ -802,6 +802,9 @@
     <div class="field"><label for="s-att-name">Attachment file name</label><input id="s-att-name"></div>
     <div class="field"><label for="s-key">Resend API key</label><input id="s-key" type="password" placeholder="re_…"><span class="note" id="s-key-note"></span></div>
     <div class="field"><label for="s-gkey">Google Places API key</label><input id="s-gkey" type="password" placeholder="AIza…"><span class="note" id="s-gkey-note">Used by Find contacts to pull each business’s phone and website from Google.</span></div>
+    <div class="field"><label>Sectors shown</label><span class="note" style="margin:0 0 6px">Untick a sector to hide it everywhere: map, lists, Follow-ups, Start here. Saved for every device.</span>
+      <div style="display:flex;gap:10px;margin-bottom:6px"><button class="link" type="button" id="sec-all" style="background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--ink);font-size:13px">All</button><button class="link" type="button" id="sec-none" style="background:none;border:0;text-decoration:underline;cursor:pointer;color:var(--ink);font-size:13px">None</button></div>
+      <div id="sec-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px 12px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:10px"></div></div>
     <div class="field"><label for="s-apollo">Apollo.io API key</label><input id="s-apollo" type="password" placeholder="Paste to find owners and purchasing contacts by name"><span class="note">Used by Find contacts to pull the decision-maker (owner, purchasing, ops) with a verified email, and by Find businesses as a second source.</span></div>
     <div class="field"><label for="s-hunter">Hunter.io API key (optional)</label><input id="s-hunter" type="password" placeholder="Paste to find emails Google and the website don’t show"><span class="note">Free at hunter.io (25 lookups/month); used only when the website scan finds nothing.</span></div>
     <div class="field"><label for="s-whsec">Resend webhook signing secret</label><input id="s-whsec" type="password" placeholder="whsec_…"><span class="note" id="s-whsec-note">Lets the inbox show delivered, opened and bounced. Webhook URL: https://byqzgilixiyvcxcszjrv.supabase.co/functions/v1/awl-api</span></div>
@@ -1306,14 +1309,14 @@ async function loadProspects() {
     hm.template = d.template; hm.loaded = true;
     fillFilters(); renderHitmap();
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
-    loadFolders(); pollSweeps(); loadContactsAll(); loadSpend();
+    loadFolders(); pollSweeps(); loadContactsAll(); loadSpend(); loadHiddenCats();
     ["f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal"].forEach(id => { const el = $(id); if (el) el.checked = false; });
-    api("threads").then(t => { hm.messages = t.messages; const n = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length; $("fu-badge").hidden = n === 0; $("fu-badge").textContent = n; }).catch(() => {});
+    api("threads").then(t => { hm.messages = t.messages; const n = hm.prospects.filter(p => visibleCat(p) && ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length; $("fu-badge").hidden = n === 0; $("fu-badge").textContent = n; }).catch(() => {});
   } catch (e) { $("hm-stats").textContent = e.message; }
 }
 function fillFilters() {
   const opts = (id, vals, label) => { const sel = $(id); const cur = sel.value; sel.innerHTML = `<option value="">${label}</option>` + vals.map(v => `<option>${esc(v)}</option>`).join(""); sel.value = cur; };
-  const uniq = k => [...new Set(hm.prospects.map(p => p[k]).filter(Boolean))].sort();
+  const uniq = k => [...new Set(hm.prospects.filter(p => k !== "category" || visibleCat(p)).map(p => p[k]).filter(Boolean))].sort();
   opts("f-city", uniq("city"), "All cities"); opts("f-county", uniq("county"), "All counties"); opts("f-cat", uniq("category"), "All categories");
   $("cat-list").innerHTML = uniq("category").map(v => `<option value="${esc(v)}">`).join("");
 }
@@ -1329,7 +1332,7 @@ function matchesQuery(p, q) {
 function filtered() {
   const q = $("f-q").value.trim().toLowerCase(), r = +$("f-radius").value || 0, city = $("f-city").value, county = $("f-county").value, cat = $("f-cat").value;
   return hm.prospects.filter(p =>
-    matchesQuery(p, q) &&
+    visibleCat(p) && matchesQuery(p, q) &&
     (!r || (p.dist != null && p.dist <= r)) && (!hm.statuses.size || hm.statuses.has(p.status)) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat) &&
     (!$("f-hasemail").checked || !!p.email) && (!$("f-hasphone").checked || !!p.phone) && (!$("f-noemail").checked || !p.email) && (!$("f-verified").checked || hm.contactsAll.some(c => c.prospect_id === p.id && c.verified)) && (!$("f-ideal").checked || isIdeal(p)) && (!$("f-tier").value || ($("f-tier").value === "5" ? bestTier(p) === 5 : bestTier(p) <= +$("f-tier").value)) &&
     (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))) &&
@@ -1373,7 +1376,8 @@ document.addEventListener("click", async e => { const b = e.target.closest("[dat
 function renderHitmap() {
   const list = filtered();
   const total = hm.prospects.length, contacted = hm.prospects.filter(p => p.status === "contacted" || p.status === "replied" || p.status === "customer").length;
-  $("hm-stats").textContent = `${list.length.toLocaleString()} shown of ${total.toLocaleString()} · ${contacted} contacted · ${hm.prospects.filter(p => p.email).length.toLocaleString()} with email`;
+  const vis = hm.prospects.filter(visibleCat);
+  $("hm-stats").textContent = `${list.length.toLocaleString()} shown of ${vis.length.toLocaleString()}${hm.hiddenCats.size ? " (" + hm.hiddenCats.size + " sector" + (hm.hiddenCats.size === 1 ? "" : "s") + " hidden)" : ""} · ${contacted} contacted · ${vis.filter(p => p.email).length.toLocaleString()} with email`;
   updateSourceLine(list.length); try { filtersSummary(); renderStartHere(); renderScope(); renderSelBar(); } catch (e) {}
   // list
   $("hm-list").innerHTML = (list.length > 300 ? list.slice(0, 300) : list).map(p => `
@@ -1557,6 +1561,7 @@ $("hm-settings").addEventListener("click", () => {
   $("s-gkey").value = ""; $("s-gkey").placeholder = t.has_places_key ? "Saved. Leave blank to keep it." : "AIza…";
   $("s-hunter").value = ""; $("s-hunter").placeholder = t.has_hunter_key ? "Saved. Leave blank to keep it." : "Paste to find emails Google and the website don’t show";
   $("s-apollo").value = ""; $("s-apollo").placeholder = t.has_apollo_key ? "Saved. Leave blank to keep it." : "Paste to find owners and purchasing contacts by name";
+  renderSectorList();
   $("s-err").textContent = ""; openModal("m-settings");
 });
 $("s-save").addEventListener("click", async () => {
@@ -1566,6 +1571,8 @@ $("s-save").addEventListener("click", async () => {
   if ($("s-gkey").value.trim()) { values.google_places_key = $("s-gkey").value.trim(); hm.template.has_places_key = true; }
   if ($("s-hunter").value.trim()) { values.hunter_api_key = $("s-hunter").value.trim(); hm.template.has_hunter_key = true; }
   if ($("s-apollo").value.trim()) { values.apollo_api_key = $("s-apollo").value.trim(); hm.template.has_apollo_key = true; }
+  const hidden = [...$("sec-list").querySelectorAll("input")].filter(i => !i.checked).map(i => i.value);
+  values.hidden_categories = JSON.stringify(hidden); hm.template.hidden_categories = values.hidden_categories; hm.hiddenCats = new Set(hidden);
   try { await api("save_template", { values }); Object.assign(hm.template, { from: values.from_email, reply_to: values.reply_to, attachment_url: values.attachment_url, attachment_name: values.attachment_name }); if (values.resend_api_key) hm.template.has_resend_key = true; closeModal("m-settings"); } catch (e) { $("s-err").textContent = e.message; }
 });
 
@@ -1927,14 +1934,14 @@ function fuDiagram(view, staged, cat, biz) {
 }
 function renderFollowups() {
   const fid0 = $("fu-folder").value; const inF0 = fid0 ? new Set(hm.folderItems.filter(i => i.folder_id === fid0).map(i => i.prospect_id)) : null;
-  const cats = [...new Set(hm.prospects.filter(p => !inF0 || inF0.has(p.id)).map(p => p.category).filter(Boolean))].sort();
+  const cats = [...new Set(hm.prospects.filter(p => visibleCat(p) && (!inF0 || inF0.has(p.id))).map(p => p.category).filter(Boolean))].sort();
   const sel = $("fu-cat"); const cur = sel.value; sel.innerHTML = `<option value="">${fid0 ? "Whole folder" : "All industries"}</option>` + cats.map(c => `<option>${esc(c)}</option>`).join(""); sel.value = cats.includes(cur) ? cur : "";
   const stSel = $("fu-stage"); const curSt = stSel.value; stSel.innerHTML = `<option value="">Every step</option><option value="ideal">★ Ideal leads (phone + email)</option>` + Object.entries(FU_STAGES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join(""); stSel.value = curSt;
   const fsel = $("fu-folder"); const curF = fsel.value;
   fsel.innerHTML = `<option value="">All businesses (no folder)</option>` + hm.folders.map(f => { const n = hm.folderItems.filter(i => i.folder_id === f.id).length; return `<option value="${f.id}">📁 ${esc(f.name)} (${n})</option>`; }).join("");
   fsel.value = curF; fsel.classList.toggle("on", !!fsel.value); fsel.style.background = fsel.value ? "var(--accent)" : ""; fsel.style.color = fsel.value ? "var(--accent-ink)" : ""; fsel.style.fontWeight = fsel.value ? "800" : "";
   const inFolder = fsel.value ? new Set(hm.folderItems.filter(i => i.folder_id === fsel.value).map(i => i.prospect_id)) : null;
-  const inCat = hm.prospects.filter(p => (!sel.value || p.category === sel.value) && (!inFolder || inFolder.has(p.id)));
+  const inCat = hm.prospects.filter(p => visibleCat(p) && (!sel.value || p.category === sel.value) && (!inFolder || inFolder.has(p.id)));
   const staged = inCat.map(p => ({ p, stage: fuStage(p) }));
   const bizSel = $("fu-biz"); const curBiz = bizSel.value;
   bizSel.innerHTML = `<option value="">${sel.value ? "All businesses in " + esc(sel.value) : "Pick an industry first"}</option>` + (sel.value ? staged.sort((a, b) => a.p.name.localeCompare(b.p.name)).map(x => `<option value="${x.p.id}">${esc(x.p.name)} — ${FU_STAGES[x.stage].label}</option>`).join("") : "");
@@ -1943,7 +1950,7 @@ function renderFollowups() {
   const folderOnly = !!fsel.value && !sel.value;
   const view = biz ? "business" : (sel.value || folderOnly ? "industry" : "all");
   const chartLabel = sel.value || (folderOnly ? "📁 " + ((hm.folders.find(f => f.id === fsel.value) || {}).name || "Folder") : "");
-  const actionable = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length;
+  const actionable = hm.prospects.filter(p => visibleCat(p) && ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length;
   $("fu-badge").hidden = actionable === 0; $("fu-badge").textContent = actionable;
   updateScopeBadges();
   const folderName = fsel.value ? (hm.folders.find(f => f.id === fsel.value) || {}).name : "";
@@ -2035,7 +2042,7 @@ $("fu-run").addEventListener("click", () => {
 
 
 /* which industries are shown in the overview (saved on this device) */
-function fuHidden() { try { return new Set(JSON.parse(localStorage.getItem("awl_fu_hidden") || "[]")); } catch (e) { return new Set(); } }
+function fuHidden() { return hm.hiddenCats; }
 function fuAllCats(staged) { return [...new Set(staged.map(x => x.p.category || "(no industry)"))].sort((a, b) => staged.filter(x => (x.p.category || "(no industry)") === b).length - staged.filter(x => (x.p.category || "(no industry)") === a).length); }
 function fuVisibleCats(staged) { const h = fuHidden(); return fuAllCats(staged).filter(c => !h.has(c)); }
 function fuRenderIndMenu() {
@@ -2315,7 +2322,7 @@ function filtersSummary() {
 }
 /* start-here strip: what to do today, in one line each */
 function renderStartHere() {
-  const live = hm.prospects.filter(p => !["skip", "customer"].includes(p.status));
+  const live = hm.prospects.filter(p => visibleCat(p) && !["skip", "customer"].includes(p.status));
   const ideal = live.filter(p => isIdeal(p) && !hm.messages.some(m => m.prospect_id === p.id && m.direction === "out"));
   const staged = live.map(p => ({ p, stage: fuStage(p) }));
   const fu = staged.filter(x => x.stage === "sent_nores").length;
@@ -2379,6 +2386,18 @@ $("sel-all-btn").addEventListener("click", () => { filtered().forEach(p => hm.se
 $("sel-none-btn").addEventListener("click", () => { hm.selected.clear(); updateSel(); renderHitmap(); });
 $("sel-folder-btn").addEventListener("click", () => openFolderModal({ ids: [...hm.selected] }));
 $("sel-email-btn").addEventListener("click", () => openComposer());
+
+
+/* ---- hidden sectors (saved on the server, applied everywhere) ---- */
+hm.hiddenCats = new Set();
+function loadHiddenCats() { try { hm.hiddenCats = new Set(JSON.parse(hm.template.hidden_categories || "[]")); } catch (e) { hm.hiddenCats = new Set(); } }
+function visibleCat(p) { return !hm.hiddenCats.has(p.category || "(no industry)"); }
+function renderSectorList() {
+  const counts = {}; hm.prospects.forEach(p => { const c = p.category || "(no industry)"; counts[c] = (counts[c] || 0) + 1; });
+  $("sec-list").innerHTML = Object.keys(counts).sort().map(c => `<label style="display:flex;gap:8px;align-items:center;font-size:13.5px;font-weight:400;cursor:pointer"><input type="checkbox" value="${esc(c)}" ${hm.hiddenCats.has(c) ? "" : "checked"}> ${esc(c)} <span style="color:var(--mute);margin-left:auto">${counts[c]}</span></label>`).join("");
+}
+$("sec-all").addEventListener("click", () => $("sec-list").querySelectorAll("input").forEach(i => i.checked = true));
+$("sec-none").addEventListener("click", () => $("sec-list").querySelectorAll("input").forEach(i => i.checked = false));
 
 /* ---- folders ---- */
 hm.folders = []; hm.folderItems = []; hm.folder = null;
