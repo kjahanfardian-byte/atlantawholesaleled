@@ -2424,6 +2424,9 @@ async function openSnapshot(id) {
   const p0 = hm.prospects.find(x => x.id === id); if (!p0) return;
   openModal("m-snap"); $("snap-body").innerHTML = `<div class="snap"><h2>${esc(p0.name)}</h2><p class="note">Pulling the latest on this business…</p></div>`;
   let d; try { d = await api("snapshot", { id }); } catch (e) { $("snap-body").innerHTML = `<p class="note">${esc(e.message)}</p><button class="btn ghost" type="button" data-close="m-snap">Close</button>`; return; }
+  try { renderSnapshot(id, p0, d); } catch (e) { console.error(e); $("snap-body").innerHTML = `<p class="note">Couldn’t draw this snapshot: ${esc(e.message)}</p><button class="btn ghost" type="button" data-close="m-snap">Close</button>`; }
+}
+function renderSnapshot(id, p0, d) {
   const p = d.prospect; Object.assign(p0, { summary: p.summary, rating: p.rating, reviews: p.reviews, hours: p.hours });
   const stage = fuStage(p0), st = FU_STAGES[stage] || {};
   const tier = bestTier(p0);
@@ -2444,7 +2447,7 @@ async function openSnapshot(id) {
       <div>
         <h4>Business</h4>
         <div class="kv">
-          ${phoneLines(p0).map(l => `<div>☎ <a href="tel:${esc(l.num.replace(/[^\d+]/g, ""))}">${esc(l.num)}</a> · <b>${esc(l.label)}</b></div>`).join("")}
+          ${phoneLines(p0).map(l => `<div>☎ <a href="tel:${esc(String(l.n).replace(/[^\d+]/g, ""))}">${esc(l.n)}</a> · <b>${esc(l.label)}</b></div>`).join("")}
           ${p0.email ? `<div>✉ ${esc(p0.email)} · <b>${esc(emailLabel(p0))}</b></div>` : `<div>✉ no email on file</div>`}
           ${site ? `<div>🌐 <a href="${esc(site)}" target="_blank" rel="noopener">${esc(site.replace(/^https?:\/\/(www\.)?/, ""))}</a></div>` : ""}
           ${p.rating ? `<div>⭐ ${p.rating} on Google${p.reviews ? " · " + (+p.reviews).toLocaleString() + " reviews" : ""}</div>` : ""}
