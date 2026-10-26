@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
 <style>
   :root {
     color-scheme: light;
@@ -279,6 +280,19 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
+  .marker-cluster { background: rgba(242,183,5,.35); border-radius: 50%; }
+  .marker-cluster div { width: 34px; height: 34px; margin: 3px; border-radius: 50%; background: #F2B705; color: #15202B; font: 700 12.5px/34px Archivo, Arial, sans-serif; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  .marker-cluster-medium div, .marker-cluster-large div { background: #15202B; color: #F2B705; }
+  .marker-cluster-large div { width: 42px; height: 42px; line-height: 42px; margin: -1px; }
+  .hm-collapsible > .hd { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--ink-2); border-bottom: 1px solid var(--line-2); user-select: none; }
+  .hm-collapsible > .hd .chev { transition: transform .15s; margin-left: auto; }
+  .hm-collapsible.open > .hd .chev { transform: rotate(180deg); }
+  .hm-collapsible > .bd { display: none; }
+  .hm-collapsible.open > .bd { display: block; }
+  .starthere { padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--paper-2); }
+  .starthere .row2 { display: flex; gap: 6px; flex-wrap: wrap; }
+  .starthere button { font-size: 12.5px; padding: 6px 10px; }
+  .starthere .k { font-size: 12px; color: var(--mute); margin-bottom: 6px; }
   .ppl { margin: 8px 0 12px; }
   .ppl h5 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); display: flex; align-items: center; gap: 8px; }
   .ppl .person { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; background: var(--paper-2); }
@@ -577,6 +591,8 @@
         </div>
         <div class="threads" id="threads"></div>
       </div>
+      <div class="starthere" id="starthere"></div>
+      <div class="hm-collapsible" id="filters-wrap"><div class="hd">Filters <span class="note" id="filters-summary" style="margin:0;font-weight:400"></span><span class="chev">▾</span></div><div class="bd">
       <div class="hm-filters">
         <input class="full" id="f-q" type="search" placeholder="Type a target: gas stations, dealerships, a company name…">
         <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Quick pull (up to 60)</button><button class="btn dark" type="button" id="f-sweep" style="padding:6px 12px;font-size:13px">Sweep everything</button><select id="f-sweep-scope" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px"><option value="box">in the box I drew</option><option value="25">within 25 mi</option><option value="40" selected>within 40 mi</option><option value="60">within 60 mi</option><option value="100">within 100 mi</option><option value="ga">all of Georgia</option></select></div>
@@ -593,7 +609,10 @@
           <label><input type="checkbox" id="f-ideal"> ★ Ideal (phone + email)</label>
         </div>
       </div>
+      </div></div>
+      <div class="hm-collapsible" id="sweep-wrap" hidden><div class="hd">Sweeps running <span class="note" id="sweep-summary" style="margin:0;font-weight:400"></span><span class="chev">▾</span></div><div class="bd">
       <div class="area-note" id="sweep-progress" hidden style="display:block;background:var(--paper-2);color:var(--ink);font-weight:500;font-size:13px"></div>
+      </div></div>
       <div class="area-note" id="folder-note" hidden style="background:var(--ink);color:var(--paper)"><span id="folder-text"></span><span class="grow"></span><button type="button" id="folder-select-all">Select all</button><button type="button" id="folder-rename">Rename</button><button type="button" id="folder-delete">Delete folder</button><button type="button" id="folder-close">Close</button></div>
       <div class="area-note" id="area-note" hidden><span id="area-text"></span><span class="grow"></span><button type="button" id="area-clear">Clear area</button></div>
       <div class="hm-sel">
@@ -1240,7 +1259,8 @@ function initMap() {
     L.DomEvent.disableClickPropagation(d); return d; } });
   new StyleCtl({ position: "bottomright" }).addTo(hm.map);
   L.marker([HQ.lat, HQ.lng], { icon: L.divIcon({ className: "", html: '<div class="pin hq"></div>', iconSize: [20, 20], iconAnchor: [10, 10] }), zIndexOffset: 1000 }).addTo(hm.map).bindPopup(`<b>${HQ.name}</b><br>1810 Auger Dr, Ste A`);
-  hm.layer = L.layerGroup().addTo(hm.map);
+  hm.layer = (window.L && L.markerClusterGroup) ? L.markerClusterGroup({ maxClusterRadius: 48, disableClusteringAtZoom: 13, spiderfyOnMaxZoom: true, showCoverageOnHover: false, chunkedLoading: true }).addTo(hm.map) : L.layerGroup().addTo(hm.map);
+  hm.cluster = hm.layer.zoomToShowLayer ? hm.layer : null;
   setTimeout(() => hm.map.invalidateSize(), 100);
 }
 async function loadProspects() {
@@ -1308,10 +1328,10 @@ document.addEventListener("click", async e => { const b = e.target.closest("[dat
 function renderHitmap() {
   const list = filtered();
   const total = hm.prospects.length, contacted = hm.prospects.filter(p => p.status === "contacted" || p.status === "replied" || p.status === "customer").length;
-  $("hm-stats").textContent = `${list.length} shown of ${total} · ${contacted} contacted · ${hm.prospects.filter(p => p.email).length} with email`;
-  updateSourceLine(list.length);
+  $("hm-stats").textContent = `${list.length.toLocaleString()} shown of ${total.toLocaleString()} · ${contacted} contacted · ${hm.prospects.filter(p => p.email).length.toLocaleString()} with email`;
+  updateSourceLine(list.length); try { filtersSummary(); renderStartHere(); } catch (e) {}
   // list
-  $("hm-list").innerHTML = list.map(p => `
+  $("hm-list").innerHTML = (list.length > 300 ? list.slice(0, 300) : list).map(p => `
     <div class="pr${hm.active === p.id ? " active" : ""}${isDone(p.id) ? " done" : ""}" data-id="${p.id}">
       ${hm.folder ? `<button type="button" class="donebtn" aria-pressed="${isDone(p.id)}" title="Mark done">✓</button>` : `<input type="checkbox" ${hm.selected.has(p.id) ? "checked" : ""} aria-label="Select ${esc(p.name)}">`}
       <div><div class="nm">${esc(p.name)}</div>
@@ -1359,7 +1379,7 @@ hm.mapClicks = document.getElementById("map").addEventListener("click", e => {
 });
 function focusProspect(id) {
   hm.active = id; const p = hm.prospects.find(x => x.id === id);
-  if (p && p.lat && p.lng) { hm.programmatic = true; hm.map.setView([p.lat, p.lng], Math.max(hm.map.getZoom(), 13)); setTimeout(() => { hm.programmatic = false; }, 600); const m = hm.markers[id]; if (m) m.openPopup(); }
+  if (p && p.lat && p.lng) { hm.programmatic = true; hm.map.setView([p.lat, p.lng], Math.max(hm.map.getZoom(), 13)); setTimeout(() => { hm.programmatic = false; }, 600); const m = hm.markers[id]; if (m) { if (hm.cluster) hm.cluster.zoomToShowLayer(m, () => m.openPopup()); else m.openPopup(); } }
   openDetail(id);
   document.querySelectorAll(".pr").forEach(r => r.classList.toggle("active", r.dataset.id === id));
 }
@@ -1599,7 +1619,7 @@ $("threads").addEventListener("click", e => { const row = e.target.closest(".th"
 async function openThread(t) {
   const unread = t.msgs.filter(m => m.direction === "in" && !m.is_read).map(m => m.id);
   if (unread.length) { try { await api("mark_read", { ids: unread }); t.msgs.forEach(m => { if (unread.includes(m.id)) m.is_read = true; }); } catch (e) {} }
-  if (t.p && t.p.lat && t.p.lng) { hm.programmatic = true; hm.map.setView([t.p.lat, t.p.lng], Math.max(hm.map.getZoom(), 13)); setTimeout(() => { hm.programmatic = false; }, 600); const mk = hm.markers[t.p.id]; if (mk) mk.openPopup(); }
+  if (t.p && t.p.lat && t.p.lng) { hm.programmatic = true; hm.map.setView([t.p.lat, t.p.lng], Math.max(hm.map.getZoom(), 13)); setTimeout(() => { hm.programmatic = false; }, 600); const mk = hm.markers[t.p.id]; if (mk) { if (hm.cluster) hm.cluster.zoomToShowLayer(mk, () => mk.openPopup()); else mk.openPopup(); } }
   renderThread(t); renderInbox();
 }
 function renderThread(t) {
@@ -2190,6 +2210,45 @@ function fzZoomAt(factor, cx, cy) {
   $("fz-fit").addEventListener("click", fzFit);
 })();
 
+
+/* collapsible sections */
+document.querySelectorAll(".hm-collapsible > .hd").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
+function filtersSummary() {
+  const bits = [];
+  if ($("f-q").value.trim()) bits.push("“" + $("f-q").value.trim() + "”");
+  if ($("f-radius").value) bits.push("within " + $("f-radius").value + " mi");
+  if (hm.statuses.size) bits.push([...hm.statuses].join("/"));
+  if ($("f-city").value) bits.push($("f-city").value);
+  if ($("f-county").value) bits.push($("f-county").value + " County");
+  if ($("f-cat").value) bits.push($("f-cat").value);
+  ["f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal"].forEach(id => { if ($(id).checked) bits.push($(id).parentElement.textContent.trim()); });
+  if (hm.area) bits.push("box on map");
+  $("filters-summary").textContent = bits.length ? "· " + bits.join(" · ") : "· none";
+}
+/* start-here strip: what to do today, in one line each */
+function renderStartHere() {
+  const live = hm.prospects.filter(p => !["skip", "customer"].includes(p.status));
+  const ideal = live.filter(p => isIdeal(p) && !hm.messages.some(m => m.prospect_id === p.id && m.direction === "out"));
+  const staged = live.map(p => ({ p, stage: fuStage(p) }));
+  const fu = staged.filter(x => x.stage === "sent_nores").length;
+  const calls = staged.filter(x => ["replied", "bounced", "fu_nores"].includes(x.stage)).length;
+  const unread = hm.messages.filter(m => m.direction === "in" && !m.is_read).length;
+  $("starthere").innerHTML = `<div class="k">Start here · ${live.length.toLocaleString()} businesses on the map</div><div class="row2">
+    <button class="btn primary" type="button" data-sh="ideal">★ ${ideal.length} ideal leads to email</button>
+    ${fu ? `<button class="btn ghost" type="button" data-sh="followup">${fu} follow-ups due</button>` : ""}
+    ${calls ? `<button class="btn ghost" type="button" data-sh="calls">${calls} calls to make</button>` : ""}
+    ${unread ? `<button class="btn ghost" type="button" data-sh="inbox">${unread} unread replies</button>` : ""}
+  </div>`;
+}
+$("starthere").addEventListener("click", e => {
+  const b = e.target.closest("[data-sh]"); if (!b) return;
+  const go = tab => document.querySelector(`.hm-tabs button[data-tab="${tab}"]`).click();
+  if (b.dataset.sh === "ideal") { go("followups"); setTimeout(() => { $("fu-cat").value = ""; $("fu-biz").value = ""; $("fu-stage").value = "ideal"; fuSelectedStage = "ideal"; renderFollowups(); }, 50); }
+  if (b.dataset.sh === "followup") { go("followups"); setTimeout(() => { $("fu-stage").value = "sent_nores"; fuSelectedStage = "sent_nores"; renderFollowups(); }, 50); }
+  if (b.dataset.sh === "calls") { go("followups"); setTimeout(() => { $("fu-stage").value = "replied"; fuSelectedStage = "replied"; renderFollowups(); }, 50); }
+  if (b.dataset.sh === "inbox") go("inbox");
+});
+
 /* ---- folders ---- */
 hm.folders = []; hm.folderItems = []; hm.folder = null;
 function isDone(pid) { return hm.folderItems.some(it => it.prospect_id === pid && it.done); }
@@ -2382,8 +2441,11 @@ async function pollSweeps() {
   try {
     const d = await api("sweep_status"); const running = (d.sweeps || []).filter(x => x.status === "running");
     const box = $("sweep-progress"); if (!box) return;
-    if (!running.length) { box.hidden = true; return; }
-    box.hidden = false;
+    const wrap = $("sweep-wrap");
+    if (!running.length) { box.hidden = true; wrap.hidden = true; return; }
+    box.hidden = false; wrap.hidden = false;
+    const done = running.reduce((a, x) => a + x.cells_done, 0), tot = running.reduce((a, x) => a + x.cells_total, 0), added = running.reduce((a, x) => a + x.inserted, 0);
+    $("sweep-summary").textContent = `· ${running.length} industries · ${done}/${tot} sections · ${added.toLocaleString()} new so far`;
     box.innerHTML = running.map(x => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><span><b>${esc(x.query)}</b> · ${x.cells_done}/${x.cells_total} sections · ${x.inserted} new of ${x.found} found · ${x.requests} requests</span><button class="link" type="button" data-cancel="${x.id}" style="background:none;border:0;text-decoration:underline;cursor:pointer;color:inherit;font-size:13px">Stop</button></div>`).join("");
   } catch (e) {}
 }
