@@ -597,6 +597,7 @@
           <select id="fu-cat" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">All industries</option></select>
           <select id="fu-biz" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">All businesses in this industry</option></select>
           <select id="fu-stage" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">Every step</option></select>
+          <select id="fu-tier" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">Any contact strength · strongest first</option><option value="1">👑 Owner / CEO / President only</option><option value="2">⭐ VP / Director / Purchasing or better</option><option value="3">🔧 Manager / PM or better</option><option value="4">👤 Any named person</option><option value="5">☎ Front desk only</option></select>
         </div>
         <div style="padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13.5px">
           <span id="fu-summary" style="color:var(--ink-2)"></span><span class="grow"></span>
@@ -622,6 +623,7 @@
         <select id="f-city"><option value="">All cities</option></select>
         <select id="f-county"><option value="">All counties</option></select>
         <select class="full" id="f-cat"><option value="">All categories</option></select>
+        <select class="full" id="f-tier"><option value="">Any contact strength</option><option value="1">👑 Owner / CEO / President on file</option><option value="2">⭐ At least VP / Director / Purchasing</option><option value="3">🔧 At least a manager / PM / sales rep</option><option value="4">👤 At least a named person</option><option value="5">☎ Front desk / inbox only</option></select>
         <div class="full" style="display:flex;gap:14px;font-size:13.5px;align-items:center;flex-wrap:wrap">
           <label><input type="checkbox" id="f-hasemail"> Has email</label>
           <label><input type="checkbox" id="f-hasphone"> Has phone</label>
@@ -1327,11 +1329,11 @@ function filtered() {
   return hm.prospects.filter(p =>
     matchesQuery(p, q) &&
     (!r || (p.dist != null && p.dist <= r)) && (!hm.statuses.size || hm.statuses.has(p.status)) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat) &&
-    (!$("f-hasemail").checked || !!p.email) && (!$("f-hasphone").checked || !!p.phone) && (!$("f-noemail").checked || !p.email) && (!$("f-verified").checked || hm.contactsAll.some(c => c.prospect_id === p.id && c.verified)) && (!$("f-ideal").checked || isIdeal(p)) &&
+    (!$("f-hasemail").checked || !!p.email) && (!$("f-hasphone").checked || !!p.phone) && (!$("f-noemail").checked || !p.email) && (!$("f-verified").checked || hm.contactsAll.some(c => c.prospect_id === p.id && c.verified)) && (!$("f-ideal").checked || isIdeal(p)) && (!$("f-tier").value || ($("f-tier").value === "5" ? bestTier(p) === 5 : bestTier(p) <= +$("f-tier").value)) &&
     (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))) &&
     (!hm.folder || hm.folderItems.some(it => it.folder_id === hm.folder && it.prospect_id === p.id)));
 }
-["f-q", "f-radius", "f-city", "f-county", "f-cat", "f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal"].forEach(id => $(id).addEventListener("input", renderHitmap));
+["f-q", "f-radius", "f-city", "f-county", "f-cat", "f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal", "f-tier"].forEach(id => $(id).addEventListener("input", renderHitmap));
 $("f-hasemail").addEventListener("change", e => { if (e.target.checked) $("f-noemail").checked = false; });
 $("f-noemail").addEventListener("change", e => { if (e.target.checked) $("f-hasemail").checked = false; });
 function updateSourceLine(shown) {
@@ -1965,18 +1967,20 @@ function renderFollowups() {
   const stageFilter = $("fu-stage").value; fuSelectedStage = stageFilter;
   // cards under the chart: the businesses on the selected step (industry view only)
   const cardsBox = $("fu-cards");
-  const matchStage = x => stageFilter === "ideal" ? isIdeal(x.p) : x.stage === stageFilter;
+  const tierF = $("fu-tier").value;
+  const tierOk = p => !tierF || (tierF === "5" ? bestTier(p) === 5 : bestTier(p) <= +tierF);
+  const matchStage = x => (stageFilter === "ideal" ? isIdeal(x.p) : x.stage === stageFilter) && tierOk(x.p);
   if (view === "industry" && stageFilter && staged.some(matchStage)) {
-    const ps = staged.filter(matchStage).map(x => x.p).sort((a, b) => a.name.localeCompare(b.name));
+    const ps = staged.filter(matchStage).map(x => x.p).sort((a, b) => bestTier(a) - bestTier(b) || a.name.localeCompare(b.name));
     const st = stageFilter === "ideal" ? { label: "★ Ideal leads", next: "email first, call if no reply", kind: "email", cls: "done" } : FU_STAGES[stageFilter];
     $("fu-cards-title").textContent = `${st.label} · ${ps.length} · next: ${st.next}`;
     const runnable = ps.filter(p => p.email && ["email", "followup"].includes(st.kind));
     const runBtn = $("fu-cards-run"); runBtn.hidden = !runnable.length; runBtn.textContent = st.kind === "followup" ? `Send follow-up to all ${runnable.length}` : `Send email to all ${runnable.length}`;
     runBtn.onclick = () => { hm.selected = new Set(runnable.map(p => p.id)); updateSel(); openComposer(st.kind === "followup" ? "followup" : undefined); };
-    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span> ${certBadge(p.id)}</div>` : retryHtml(p, true)}${!p.contact_name && hm.template.has_apollo_key ? `<div class="meta" style="margin-top:4px"><button class="btn ghost" type="button" data-findppl="${p.id}" style="padding:3px 8px;font-size:12px">🔍 Find people</button></div>` : ""}</div>`).join("");
+    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")} ${tierBadge(p)}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span> ${certBadge(p.id)}</div>` : retryHtml(p, true)}${!p.contact_name && hm.template.has_apollo_key ? `<div class="meta" style="margin-top:4px"><button class="btn ghost" type="button" data-findppl="${p.id}" style="padding:3px 8px;font-size:12px">🔍 Find people</button></div>` : ""}</div>`).join("");
     cardsBox.hidden = false;
   } else cardsBox.hidden = true;
-  const rows = staged.filter(x => (!stageFilter || matchStage(x)) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
+  const rows = staged.filter(x => (!stageFilter || matchStage(x)) && tierOk(x.p) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || bestTier(a.p) - bestTier(b.p) || a.p.name.localeCompare(b.p.name));
   const needHere = staged.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
   $("fu-summary").textContent = `${rows.length} shown · ${needHere} need action in ${folderName ? "📁 " + folderName + (sel.value ? " · " + sel.value : "") : (sel.value || "all industries")}`;
   const runnable = rows.filter(x => ["none", "sent_nores"].includes(x.stage) && x.p.email);
@@ -1985,7 +1989,7 @@ function renderFollowups() {
   $("fu-list").innerHTML = rows.slice(0, 400).map(({ p, stage }) => { const st = FU_STAGES[stage]; return `
     <div class="fu-row" data-id="${p.id}">
       <div><div class="nm">${esc(p.name)}</div>
-        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""}</div>
+        <div class="meta">${esc(p.category || "")}${p.city ? " · " + esc(p.city) : ""} ${tierBadge(p)}</div>
         ${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} · ${esc(x.label)}</div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} · ${esc(emailLabel(p))} ${certBadge(p.id)}</div>` : ""}
         <div class="next"><span class="pill ${st.cls}">${st.label}</span> ${fuDays(p) ? '<span style="color:var(--mute);font-weight:400">' + fuDays(p) + "</span> " : ""}→ ${st.next}</div>${p.email ? "" : retryHtml(p, true)}</div>
       <div class="act">
@@ -1999,7 +2003,7 @@ function renderFollowups() {
 }
 $("fu-cat").addEventListener("change", () => { $("fu-biz").value = ""; $("fu-stage").value = ""; fuSelectedStage = ""; renderFollowups(); });
 $("fu-folder").addEventListener("change", () => { $("fu-biz").value = ""; $("fu-stage").value = ""; fuSelectedStage = ""; renderFollowups(); });
-["fu-biz", "fu-stage"].forEach(id => $(id).addEventListener("change", () => { fuSelectedStage = $("fu-stage").value; renderFollowups(); }));
+["fu-biz", "fu-stage", "fu-tier"].forEach(id => $(id).addEventListener("change", () => { fuSelectedStage = $("fu-stage").value; renderFollowups(); }));
 $("fu-list").addEventListener("click", async e => {
   const b = e.target.closest("[data-fu]");
   if (b) {
@@ -2153,6 +2157,31 @@ document.addEventListener("click", async e => {
 });
 document.addEventListener("dblclick", e => { if (e.target.closest("[data-findppl]")) e.stopPropagation(); }, true);
 
+
+/* ---- how strong is the best person we have at this business? ---- */
+const TIERS = { 1: "👑 Owner / CEO / President", 2: "⭐ VP / Director / Purchasing", 3: "🔧 Manager / PM / Sales", 4: "👤 Named person", 5: "☎ Front desk / inbox only" };
+function titleTier(t) {
+  const x = (t || "").toLowerCase();
+  if (!x) return 4;
+  if (/owner|president|ceo|founder|principal|partner|proprietor/.test(x)) return 1;
+  if (/vice|vp|director|purchasing|procurement|controller|cfo|coo|head of/.test(x)) return 2;
+  if (/manager|project|sales|estimator|supervisor|superintendent|lead|foreman|buyer/.test(x)) return 3;
+  return 4;
+}
+function bestTier(p) {
+  const cs = hm.contactsAll.filter(c => c.prospect_id === p.id && (c.name || c.title));
+  let best = 5;
+  cs.forEach(c => { best = Math.min(best, titleTier(c.title)); });
+  if (p.contact_name) best = Math.min(best, titleTier(p.contact_title));
+  if (best === 5 && p.email && !/^(info|sales|office|contact|hello|service|admin|orders|support|customerservice|billing|accounting|hr|jobs|careers|marketing|leasing|team|mail|help)@/i.test(p.email)) best = 4;
+  return best;
+}
+function bestPerson(p) {
+  const cs = hm.contactsAll.filter(c => c.prospect_id === p.id && (c.name || c.title)).sort((a, b) => titleTier(a.title) - titleTier(b.title) || (b.verified - a.verified));
+  return cs[0] || (p.contact_name ? { name: p.contact_name, title: p.contact_title } : null);
+}
+function tierBadge(p) { const t = bestTier(p); const bp = bestPerson(p); return `<span class="cert ${t <= 2 ? "verified" : t === 3 ? "corroborated" : t === 4 ? "single" : "generic"}" title="${esc(TIERS[t])}">${TIERS[t].split(" ")[0]} ${bp && bp.name ? esc(bp.name) + (bp.title ? ", " + esc(bp.title) : "") : TIERS[t].slice(2)}</span>`; }
+
 /* what each number and email is tied to */
 function phoneLabel(p) {
   if (!p.phone) return "";
@@ -2275,6 +2304,7 @@ function filtersSummary() {
   if ($("f-county").value) bits.push($("f-county").value + " County");
   if ($("f-cat").value) bits.push($("f-cat").value);
   ["f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal"].forEach(id => { if ($(id).checked) bits.push($(id).parentElement.textContent.trim()); });
+  if ($("f-tier").value) bits.push($("f-tier").selectedOptions[0].textContent);
   if (hm.area) bits.push("box on map");
   $("filters-summary").textContent = bits.length ? "· " + bits.join(" · ") : "· none";
 }
@@ -2288,6 +2318,7 @@ function renderStartHere() {
   const unread = hm.messages.filter(m => m.direction === "in" && !m.is_read).length;
   $("starthere").innerHTML = `<div class="k">Start here · ${live.length.toLocaleString()} businesses on the map</div><div class="row2">
     <button class="btn primary" type="button" data-sh="ideal">★ ${ideal.length} ideal leads to email</button>
+    ${(() => { const n = ideal.filter(p => bestTier(p) <= 2).length; return n ? `<button class="btn dark" type="button" data-sh="owners">👑 ${n} with an owner or exec</button>` : ""; })()}
     ${fu ? `<button class="btn ghost" type="button" data-sh="followup">${fu} follow-ups due</button>` : ""}
     ${calls ? `<button class="btn ghost" type="button" data-sh="calls">${calls} calls to make</button>` : ""}
     ${unread ? `<button class="btn ghost" type="button" data-sh="inbox">${unread} unread replies</button>` : ""}
@@ -2297,6 +2328,7 @@ $("starthere").addEventListener("click", e => {
   const b = e.target.closest("[data-sh]"); if (!b) return;
   const go = tab => document.querySelector(`.hm-tabs button[data-tab="${tab}"]`).click();
   if (b.dataset.sh === "ideal") { go("followups"); setTimeout(() => { $("fu-cat").value = ""; $("fu-biz").value = ""; $("fu-stage").value = "ideal"; fuSelectedStage = "ideal"; renderFollowups(); }, 50); }
+  if (b.dataset.sh === "owners") { go("followups"); setTimeout(() => { $("fu-cat").value = ""; $("fu-biz").value = ""; $("fu-stage").value = "ideal"; fuSelectedStage = "ideal"; $("fu-tier").value = "2"; renderFollowups(); }, 50); }
   if (b.dataset.sh === "followup") { go("followups"); setTimeout(() => { $("fu-stage").value = "sent_nores"; fuSelectedStage = "sent_nores"; renderFollowups(); }, 50); }
   if (b.dataset.sh === "calls") { go("followups"); setTimeout(() => { $("fu-stage").value = "replied"; fuSelectedStage = "replied"; renderFollowups(); }, 50); }
   if (b.dataset.sh === "inbox") go("inbox");
