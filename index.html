@@ -1271,6 +1271,7 @@ async function loadProspects() {
     fillFilters(); renderHitmap();
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
     loadFolders(); pollSweeps(); loadContactsAll();
+    ["f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal"].forEach(id => { const el = $(id); if (el) el.checked = false; });
     api("threads").then(t => { hm.messages = t.messages; const n = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length; $("fu-badge").hidden = n === 0; $("fu-badge").textContent = n; }).catch(() => {});
   } catch (e) { $("hm-stats").textContent = e.message; }
 }
@@ -1281,10 +1282,18 @@ function fillFilters() {
   $("cat-list").innerHTML = uniq("category").map(v => `<option value="${esc(v)}">`).join("");
 }
 hm.statuses = new Set(); hm.area = null;
+const stem = w => w.toLowerCase().replace(/(ments?|ers?|ies|ings?|es|s)$/, "");
+function matchesQuery(p, q) {
+  if (!q) return true;
+  const hay = [p.name, p.address, p.city, p.category, p.email, p.contact_name].join(" ").toLowerCase();
+  if (hay.includes(q)) return true;
+  const words = hay.split(/[^a-z0-9@.]+/);
+  return q.split(/\s+/).filter(Boolean).every(t => { const st = stem(t); return st.length >= 3 ? words.some(w => w.startsWith(st)) : hay.includes(t); });
+}
 function filtered() {
   const q = $("f-q").value.trim().toLowerCase(), r = +$("f-radius").value || 0, city = $("f-city").value, county = $("f-county").value, cat = $("f-cat").value;
   return hm.prospects.filter(p =>
-    (!q || [p.name, p.address, p.city, p.category, p.email, p.notes].join(" ").toLowerCase().includes(q)) &&
+    matchesQuery(p, q) &&
     (!r || (p.dist != null && p.dist <= r)) && (!hm.statuses.size || hm.statuses.has(p.status)) && (!city || p.city === city) && (!county || p.county === county) && (!cat || p.category === cat) &&
     (!$("f-hasemail").checked || !!p.email) && (!$("f-hasphone").checked || !!p.phone) && (!$("f-noemail").checked || !p.email) && (!$("f-verified").checked || hm.contactsAll.some(c => c.prospect_id === p.id && c.verified)) && (!$("f-ideal").checked || isIdeal(p)) &&
     (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))) &&
@@ -2012,7 +2021,13 @@ document.addEventListener("keydown", e => { if (!$("hm-side").classList.contains
 /* the industry currently in focus: the Follow-ups industry when that tab is open, else the Prospects category filter */
 function currentIndustry() { return $("hm-side").classList.contains("followups") ? $("fu-cat").value : $("f-cat").value; }
 /* reuse an existing industry name if the user types the same thing in different capitalization */
-function canonicalCategory(name) { const k = String(name || "").trim().toLowerCase().replace(/\s+/g, " "); const hit = [...new Set(hm.prospects.map(p => p.category).filter(Boolean))].find(c => c.toLowerCase() === k || c.toLowerCase() === k + "s" || c.toLowerCase() + "s" === k); return hit || String(name || "").trim().replace(/\b\w/g, ch => ch.toUpperCase()); }
+function canonicalCategory(name) {
+  const k = String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+  const cats = [...new Set(hm.prospects.map(p => p.category).filter(Boolean))];
+  const key = x => x.toLowerCase().split(/\s+/).map(stem).join(" ");
+  const hit = cats.find(c => c.toLowerCase() === k || c.toLowerCase() === k + "s" || c.toLowerCase() + "s" === k) || cats.find(c => key(c) === key(k));
+  return hit || String(name || "").trim().replace(/\b\w/g, ch => ch.toUpperCase());
+}
 function updateScopeBadges() {
   const ind = currentIndustry();
   $("hm-discover").textContent = ind ? `Find more ${ind}` : "Find businesses";
