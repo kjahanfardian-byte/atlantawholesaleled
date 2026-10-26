@@ -282,6 +282,21 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
+  .snap h2 { margin: 0 0 2px; font-size: 22px; }
+  .snap .sub { color: var(--mute); font-size: 13.5px; margin-bottom: 10px; }
+  .snap .offer { font-size: 15px; line-height: 1.45; padding: 10px 12px; border-left: 4px solid var(--accent); background: var(--paper-2); border-radius: 0 8px 8px 0; margin: 10px 0 14px; }
+  .snap .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .snap h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); }
+  .snap .kv { font-size: 13.5px; line-height: 1.6; }
+  .snap .who { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; background: var(--paper-2); font-size: 13.5px; }
+  .snap .who.primary { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .snap .who .nm { font-weight: 800; font-size: 14.5px; }
+  .snap .who .ln { color: var(--ink-2); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
+  .snap .who .tag { font-size: 11.5px; color: var(--mute); }
+  .snap .tl { font-size: 13px; color: var(--ink-2); }
+  .snap .tl div { padding: 3px 0; border-bottom: 1px dashed var(--line-2); }
+  .snap .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  @media (max-width: 720px) { .snap .grid { grid-template-columns: 1fr; } }
   .scope-banner { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--ink); color: var(--paper); font-size: 13.5px; font-weight: 700; border-bottom: 3px solid var(--accent); }
   .scope-banner[hidden] { display: none; }
   .scope-banner .x { margin-left: auto; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
@@ -680,7 +695,7 @@
           <div class="fu-zoom"><button type="button" id="fz-in" title="Zoom in">+</button><button type="button" id="fz-out" title="Zoom out">−</button><button type="button" id="fz-fit" title="Fit to screen">Fit</button></div>
         </div>
         <div id="fu-cards" class="fu-cards" hidden>
-          <div class="fu-cards-head"><b id="fu-cards-title"></b><span class="note" id="fu-cards-note" style="margin:0">Double-click a card to email or call. Click to select.</span><span class="grow"></span><button class="btn primary" type="button" id="fu-cards-run" style="padding:7px 12px;font-size:13.5px"></button><button class="btn ghost" type="button" id="fu-cards-close" style="padding:7px 12px;font-size:13.5px">Close</button></div>
+          <div class="fu-cards-head"><b id="fu-cards-title"></b><span class="note" id="fu-cards-note" style="margin:0">Double-click a card for its snapshot. Click to select.</span><span class="grow"></span><button class="btn primary" type="button" id="fu-cards-run" style="padding:7px 12px;font-size:13.5px"></button><button class="btn ghost" type="button" id="fu-cards-close" style="padding:7px 12px;font-size:13.5px">Close</button></div>
           <div id="fu-cards-grid" class="fu-cards-grid"></div>
         </div>
       </div>
@@ -710,13 +725,16 @@
   <button type="button" data-act="email">Email this business</button>
   <button type="button" data-act="text">Text this business</button>
   <button type="button" data-act="folder">Add to folder…</button>
-  <button type="button" data-act="details">Details</button>
+  <button type="button" data-act="snapshot">Snapshot</button><button type="button" data-act="details">Details</button>
   <button type="button" data-act="map">Show on map</button>
   <button type="button" data-act="contacted">Mark contacted</button>
   <button type="button" data-act="skip">Skip</button>
   <button type="button" data-act="delete" class="danger">Delete</button>
 </div>
 
+<div class="modal" id="m-snap" role="dialog" aria-modal="true"><div class="box" style="max-width:860px">
+  <div id="snap-body"><p class="note">Loading…</p></div>
+</div></div>
 <div class="modal" id="m-phone" role="dialog" aria-modal="true">
   <div class="box">
     <h3 id="ph-name">Call</h3>
@@ -1413,6 +1431,7 @@ function updateSel() { try { renderSelBar(); } catch (e) {}
   $("act-email").disabled = n === 0;
   $("sel-all").checked = shown.length > 0 && shown.every(p => hm.selected.has(p.id));
 }
+$("hm-list").addEventListener("dblclick", e => { const row = e.target.closest(".pr"); if (!row || e.target.closest("button, a, input")) return; openSnapshot(row.dataset.id); });
 $("hm-list").addEventListener("click", e => {
   const row = e.target.closest(".pr"); if (!row) return;
   const id = row.dataset.id;
@@ -1956,7 +1975,7 @@ function renderFollowups() {
   const folderName = fsel.value ? (hm.folders.find(f => f.id === fsel.value) || {}).name : "";
   $("fu-chart-title").textContent = view === "business" ? `${biz.p.name} · where it is and what’s next` : folderOnly ? `📁 ${folderName} · step by step` : (folderName ? "📁 " + folderName + " · " : "") + (view === "all" ? "Follow-up flow · every industry" : `Follow-up flow · ${sel.value}`);
   $("fu-prev").style.visibility = $("fu-next").style.visibility = "visible";
-  $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it, or use ◀ ▶ to step through one at a time." : view === "industry" ? "Click a step to open its businesses; double-click a business to email or call." : "Pick another business from the dropdown, or clear it to see the whole industry.";
+  $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it, or use ◀ ▶ to step through one at a time." : view === "industry" ? "Click a step to open its businesses; double-click a business for its snapshot." : "Pick another business from the dropdown, or clear it to see the whole industry.";
   const def = fuDiagram(view, staged, chartLabel, biz);
   if (window.mermaid) {
     mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", flowchart: { useMaxWidth: false, nodeSpacing: 30, rankSpacing: 40 }, themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
@@ -1968,11 +1987,11 @@ function renderFollowups() {
         if (view === "all") { const m = n.id.match(/-C(\d+)(?:[a-e])?-/); if (m) { const c = fuVisibleCats(staged)[+m[1]]; n.addEventListener("click", () => { $("fu-cat").value = c === "(no industry)" ? "" : c; $("fu-biz").value = ""; fuSelectedStage = ""; $("fu-stage").value = ""; renderFollowups(); }); } }
         else if (view === "industry") {
           const b = n.id.match(/-B_([A-Z]+)_(\d+)-/);
-          if (b) { const stage = Object.keys(FU_NODE).find(k => FU_NODE[k] === b[1]); const ps = staged.filter(x => x.stage === stage).map(x => x.p); const p = ps[+b[2]]; if (p) { n.addEventListener("dblclick", e => { e.preventDefault(); fuAct(p, stage); }); n.addEventListener("click", () => { hm.active = p.id; }); } return; }
+          if (b) { const stage = Object.keys(FU_NODE).find(k => FU_NODE[k] === b[1]); const ps = staged.filter(x => x.stage === stage).map(x => x.p); const p = ps[+b[2]]; if (p) { n.addEventListener("dblclick", e => { e.preventDefault(); openSnapshot(p.id); }); n.addEventListener("click", () => { hm.active = p.id; }); } return; }
           if (n.id.includes("-IDEAL-")) { n.addEventListener("click", () => { fuSelectedStage = fuSelectedStage === "ideal" ? "" : "ideal"; $("fu-stage").value = fuSelectedStage; renderFollowups(); }); return; }
           const key = Object.keys(FU_NODE).find(k => n.id.includes("-" + FU_NODE[k] + "-")); if (key) n.addEventListener("click", () => { fuSelectedStage = fuSelectedStage === key ? "" : key; $("fu-stage").value = fuSelectedStage; renderFollowups(); });
         }
-        else if (view === "business") { n.addEventListener("dblclick", e => { e.preventDefault(); fuAct(biz.p, biz.stage); }); }
+        else if (view === "business") { n.addEventListener("dblclick", e => { e.preventDefault(); openSnapshot(biz.p.id); }); }
       });
     }).catch(e => { $("fu-mermaid").innerHTML = `<p class="note">Chart couldn’t render: ${esc(e.message)}</p>`; });
   }
@@ -2266,11 +2285,11 @@ $("ph-called").addEventListener("click", async () => {
   } catch (e) { alert(e.message); }
 });
 $("ph-skip").addEventListener("click", async () => { if (!phoneTarget) return; await setStatus([phoneTarget.id], "skip"); closeModal("m-phone"); if ($("hm-side").classList.contains("followups")) renderFollowups(); });
-$("fu-list").addEventListener("dblclick", e => { const row = e.target.closest(".fu-row"); if (!row || e.target.closest("button, a")) return; const p = hm.prospects.find(x => x.id === row.dataset.id); if (p) fuAct(p, fuStage(p)); });
+$("fu-list").addEventListener("dblclick", e => { const row = e.target.closest(".fu-row"); if (!row || e.target.closest("button, a")) return; openSnapshot(row.dataset.id); });
 
 
 $("fu-cards-grid").addEventListener("click", e => { const c = e.target.closest(".fu-card"); if (!c) return; const id = c.dataset.id; hm.selected.has(id) ? hm.selected.delete(id) : hm.selected.add(id); c.classList.toggle("on", hm.selected.has(id)); updateSel(); });
-$("fu-cards-grid").addEventListener("dblclick", e => { const c = e.target.closest(".fu-card"); if (!c) return; const p = hm.prospects.find(x => x.id === c.dataset.id); if (p) fuAct(p, fuStage(p)); });
+$("fu-cards-grid").addEventListener("dblclick", e => { const c = e.target.closest(".fu-card"); if (!c || e.target.closest("button, a")) return; openSnapshot(c.dataset.id); });
 $("fu-cards-close").addEventListener("click", () => { fuSelectedStage = ""; $("fu-stage").value = ""; renderFollowups(); });
 
 /* ---- pan + zoom for the follow-up chart ---- */
@@ -2398,6 +2417,74 @@ function renderSectorList() {
 }
 $("sec-all").addEventListener("click", () => $("sec-list").querySelectorAll("input").forEach(i => i.checked = true));
 $("sec-none").addEventListener("click", () => $("sec-list").querySelectorAll("input").forEach(i => i.checked = false));
+
+
+/* ---- snapshot: everything about one business in one card ---- */
+async function openSnapshot(id) {
+  const p0 = hm.prospects.find(x => x.id === id); if (!p0) return;
+  openModal("m-snap"); $("snap-body").innerHTML = `<div class="snap"><h2>${esc(p0.name)}</h2><p class="note">Pulling the latest on this business…</p></div>`;
+  let d; try { d = await api("snapshot", { id }); } catch (e) { $("snap-body").innerHTML = `<p class="note">${esc(e.message)}</p><button class="btn ghost" type="button" data-close="m-snap">Close</button>`; return; }
+  const p = d.prospect; Object.assign(p0, { summary: p.summary, rating: p.rating, reviews: p.reviews, hours: p.hours });
+  const stage = fuStage(p0), st = FU_STAGES[stage] || {};
+  const tier = bestTier(p0);
+  const genericRe = /^(info|sales|office|contact|hello|service|admin|orders|support|customerservice|billing|accounting|hr|jobs|careers|marketing|leasing|team|mail|help)@/i;
+  const who = c => `<div class="who${c.is_primary ? " primary" : ""}">
+      <div><span class="nm">${c.name ? esc(c.name) : (c.email && genericRe.test(c.email) ? "General inbox" : "Unnamed person")}</span>${c.title ? ` · ${esc(c.title)}` : ""} <span class="cert ${esc(c.certainty)}">${certLabel(c)}</span>${c.is_primary ? ` <span class="cert" style="background:var(--accent);color:var(--accent-ink)">emails go here</span>` : ""}</div>
+      <div class="ln">${c.email ? `<span>✉ ${esc(c.email)}</span>` : ""}${c.phone ? `<span>☎ <a href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a> · direct</span>` : ""}${c.linkedin ? `<a href="${esc(c.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</div>
+      <div class="tag">from ${esc((c.sources || []).join(" + ") || "you")}${c.confidence ? " · " + c.confidence + "% confidence" : ""}${c.verified_how ? " · " + esc(c.verified_how) : ""}</div></div>`;
+  const people = d.contacts.length ? d.contacts.map(who).join("") : `<p class="note" style="margin:0">No one on file yet.${hm.template.has_apollo_key ? " Press Find people to ask Apollo." : ""}</p>`;
+  const sent = d.messages.filter(m => m.direction === "out"), got = d.messages.filter(m => m.direction === "in");
+  const tl = d.messages.length ? d.messages.slice(0, 8).map(m => `<div>${new Date(m.created_at).toLocaleDateString()} · ${m.direction === "out" ? "📤 Sent" : "📥 Reply"} · ${esc(m.subject || "")}${m.status && m.status !== "sent" ? " · " + esc(m.status) : ""}</div>`).join("") : `<div>No emails yet.</div>`;
+  const site = p0.website ? (/^https?:/.test(p0.website) ? p0.website : "https://" + p0.website) : "";
+  $("snap-body").innerHTML = `<div class="snap">
+    <h2>${esc(p0.name)}</h2>
+    <div class="sub">${esc(p0.category || "")}${p0.address ? " · " + esc(p0.address) : ""}${p0.city ? ", " + esc(p0.city) : ""}${p0.zip ? " " + esc(p0.zip) : ""}${p0.county ? " · " + esc(p0.county) + " County" : ""}${p0.dist ? " · " + p0.dist.toFixed(1) + " mi from Tucker" : ""}</div>
+    <div class="offer"><b>What they do:</b> ${esc(p.summary || "")}</div>
+    <div class="grid">
+      <div>
+        <h4>Business</h4>
+        <div class="kv">
+          ${phoneLines(p0).map(l => `<div>☎ <a href="tel:${esc(l.num.replace(/[^\d+]/g, ""))}">${esc(l.num)}</a> · <b>${esc(l.label)}</b></div>`).join("")}
+          ${p0.email ? `<div>✉ ${esc(p0.email)} · <b>${esc(emailLabel(p0))}</b></div>` : `<div>✉ no email on file</div>`}
+          ${site ? `<div>🌐 <a href="${esc(site)}" target="_blank" rel="noopener">${esc(site.replace(/^https?:\/\/(www\.)?/, ""))}</a></div>` : ""}
+          ${p.rating ? `<div>⭐ ${p.rating} on Google${p.reviews ? " · " + (+p.reviews).toLocaleString() + " reviews" : ""}</div>` : ""}
+          ${p0.employees ? `<div>👥 about ${esc(String(p0.employees))} employees</div>` : ""}
+          ${p.hours ? `<div style="color:var(--mute);font-size:12.5px;margin-top:4px">🕒 ${esc(p.hours.split("; ")[0])}${p.hours.split("; ").length > 1 ? " (see Google for the week)" : ""}</div>` : ""}
+          <div style="margin-top:6px"><b>Contact strength:</b> ${TIERS[tier]}</div>
+          <div><b>Status:</b> ${esc(p0.status || "new")} · <b>Where it is:</b> ${esc(st.label || "")} → ${esc(st.next || "")}</div>
+          ${p0.contacted_at ? `<div><b>First contacted:</b> ${new Date(p0.contacted_at).toLocaleDateString()}</div>` : ""}
+        </div>
+        <h4 style="margin-top:12px">Email history · ${sent.length} sent, ${got.length} replies</h4>
+        <div class="tl">${tl}</div>
+        ${p0.notes ? `<h4 style="margin-top:12px">Notes</h4><div class="tl" style="white-space:pre-wrap">${esc(p0.notes)}</div>` : ""}
+      </div>
+      <div>
+        <h4>People tied to this business · ${d.contacts.length}</h4>
+        ${people}
+      </div>
+    </div>
+    <div class="actions">
+      ${p0.email ? `<button class="btn primary" type="button" data-snap="email">Send email</button>` : ""}
+      ${p0.phone ? `<button class="btn ghost" type="button" data-snap="call">Call</button>` : ""}
+      ${hm.template.has_apollo_key ? `<button class="btn ghost" type="button" data-snap="people">🔍 Find people</button>` : ""}
+      <button class="btn ghost" type="button" data-snap="detail">Open full record</button>
+      <button class="btn ghost" type="button" data-snap="map">Show on map</button>
+      <button class="btn ghost" type="button" data-snap="refresh" title="Re-pull description, rating and hours">↻ Refresh</button>
+      <span class="grow"></span>
+      <button class="btn ghost" type="button" data-close="m-snap">Close</button>
+    </div></div>`;
+  $("snap-body").dataset.id = id;
+}
+$("snap-body").addEventListener("click", async e => {
+  const b = e.target.closest("[data-snap]"); if (!b) return; const id = $("snap-body").dataset.id; const p = hm.prospects.find(x => x.id === id); if (!p) return;
+  const a = b.dataset.snap;
+  if (a === "email") { closeModal("m-snap"); hm.selected = new Set([id]); updateSel(); openComposer(); }
+  if (a === "call") { closeModal("m-snap"); openPhone(p); }
+  if (a === "detail") { closeModal("m-snap"); document.querySelector('.hm-tabs button[data-tab="prospects"]').click(); openDetail(id); }
+  if (a === "map") { closeModal("m-snap"); document.querySelector('.hm-tabs button[data-tab="prospects"]').click(); focusProspect(id); }
+  if (a === "people") { b.disabled = true; b.textContent = "Searching Apollo…"; try { const r = await api("enrich", { ids: [id], use_hunter: false, force_apollo: true }); const x = r.results[0] || {}; if (x.ok) Object.assign(p, { email: x.email || p.email, contact_name: x.contact_name || p.contact_name, contact_title: x.contact_title || p.contact_title, contact_phone: x.contact_phone || p.contact_phone, linkedin: x.linkedin || p.linkedin, notes: x.notes || p.notes }); loadContactsAll(); } catch (err) {} openSnapshot(id); }
+  if (a === "refresh") { b.disabled = true; try { await api("snapshot", { id, refresh: true }); } catch (err) {} openSnapshot(id); }
+});
 
 /* ---- folders ---- */
 hm.folders = []; hm.folderItems = []; hm.folder = null;
