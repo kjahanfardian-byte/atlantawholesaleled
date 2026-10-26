@@ -274,7 +274,9 @@
   .reply-box textarea { min-height: 120px; }
   .hm-fu { display: none; flex-direction: column; min-height: 0; flex: 1; }
   .hm-side.followups .hm-fu { display: flex; }
-  .hm-side.followups .hm-filters, .hm-side.followups .hm-sel, .hm-side.followups .hm-list, .hm-side.followups .area-note { display: none !important; }
+  .hm-side.followups .hm-filters, .hm-side.followups .hm-sel, .hm-side.followups .hm-list, .hm-side.followups .area-note,
+  .hm-side.followups .scope-banner, .hm-side.followups .starthere, .hm-side.followups .hm-collapsible, .hm-side.followups .selbar2,
+  .hm-side.inbox .scope-banner, .hm-side.inbox .starthere, .hm-side.inbox .hm-collapsible, .hm-side.inbox .selbar2 { display: none !important; }
   .fu-chart { position: absolute; inset: 0; z-index: 1100; background: var(--bg); display: flex; flex-direction: column; }
   .fu-chart[hidden] { display: none; }
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
@@ -1924,8 +1926,9 @@ function fuDiagram(view, staged, cat, biz) {
   return def + FU_LINE;
 }
 function renderFollowups() {
-  const cats = [...new Set(hm.prospects.map(p => p.category).filter(Boolean))].sort();
-  const sel = $("fu-cat"); const cur = sel.value; sel.innerHTML = `<option value="">All industries</option>` + cats.map(c => `<option>${esc(c)}</option>`).join(""); sel.value = cur;
+  const fid0 = $("fu-folder").value; const inF0 = fid0 ? new Set(hm.folderItems.filter(i => i.folder_id === fid0).map(i => i.prospect_id)) : null;
+  const cats = [...new Set(hm.prospects.filter(p => !inF0 || inF0.has(p.id)).map(p => p.category).filter(Boolean))].sort();
+  const sel = $("fu-cat"); const cur = sel.value; sel.innerHTML = `<option value="">${fid0 ? "Whole folder" : "All industries"}</option>` + cats.map(c => `<option>${esc(c)}</option>`).join(""); sel.value = cats.includes(cur) ? cur : "";
   const stSel = $("fu-stage"); const curSt = stSel.value; stSel.innerHTML = `<option value="">Every step</option><option value="ideal">★ Ideal leads (phone + email)</option>` + Object.entries(FU_STAGES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join(""); stSel.value = curSt;
   const fsel = $("fu-folder"); const curF = fsel.value;
   fsel.innerHTML = `<option value="">All businesses (no folder)</option>` + hm.folders.map(f => { const n = hm.folderItems.filter(i => i.folder_id === f.id).length; return `<option value="${f.id}">📁 ${esc(f.name)} (${n})</option>`; }).join("");
@@ -1937,15 +1940,17 @@ function renderFollowups() {
   bizSel.innerHTML = `<option value="">${sel.value ? "All businesses in " + esc(sel.value) : "Pick an industry first"}</option>` + (sel.value ? staged.sort((a, b) => a.p.name.localeCompare(b.p.name)).map(x => `<option value="${x.p.id}">${esc(x.p.name)} — ${FU_STAGES[x.stage].label}</option>`).join("") : "");
   bizSel.value = curBiz; bizSel.disabled = !sel.value;
   const biz = staged.find(x => x.p.id === bizSel.value) || null;
-  const view = biz ? "business" : (sel.value ? "industry" : "all");
+  const folderOnly = !!fsel.value && !sel.value;
+  const view = biz ? "business" : (sel.value || folderOnly ? "industry" : "all");
+  const chartLabel = sel.value || (folderOnly ? "📁 " + ((hm.folders.find(f => f.id === fsel.value) || {}).name || "Folder") : "");
   const actionable = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length;
   $("fu-badge").hidden = actionable === 0; $("fu-badge").textContent = actionable;
   updateScopeBadges();
   const folderName = fsel.value ? (hm.folders.find(f => f.id === fsel.value) || {}).name : "";
-  $("fu-chart-title").textContent = (folderName ? "📁 " + folderName + " · " : "") + (view === "all" ? "Follow-up flow · every industry" : view === "industry" ? `Follow-up flow · ${sel.value}` : `${biz.p.name} · where it is and what’s next`);
+  $("fu-chart-title").textContent = view === "business" ? `${biz.p.name} · where it is and what’s next` : folderOnly ? `📁 ${folderName} · step by step` : (folderName ? "📁 " + folderName + " · " : "") + (view === "all" ? "Follow-up flow · every industry" : `Follow-up flow · ${sel.value}`);
   $("fu-prev").style.visibility = $("fu-next").style.visibility = "visible";
   $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it, or use ◀ ▶ to step through one at a time." : view === "industry" ? "Click a step to open its businesses; double-click a business to email or call." : "Pick another business from the dropdown, or clear it to see the whole industry.";
-  const def = fuDiagram(view, staged, sel.value, biz);
+  const def = fuDiagram(view, staged, chartLabel, biz);
   if (window.mermaid) {
     mermaid.initialize({ startOnLoad: false, theme: "base", securityLevel: "loose", flowchart: { useMaxWidth: false, nodeSpacing: 30, rankSpacing: 40 }, themeVariables: { fontFamily: "Archivo, Arial, sans-serif", fontSize: "13px" } });
     mermaid.render("fu-svg-" + Date.now(), def).then(({ svg }) => {
