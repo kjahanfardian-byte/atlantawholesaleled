@@ -280,6 +280,13 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
+  .scope-banner { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--ink); color: var(--paper); font-size: 13.5px; font-weight: 700; border-bottom: 3px solid var(--accent); }
+  .scope-banner[hidden] { display: none; }
+  .scope-banner .x { margin-left: auto; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+  .scope-banner .x2 { background: transparent; color: var(--paper); border: 1px solid rgba(255,255,255,.4); border-radius: 8px; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+  .selbar2 { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  .selbar2 .btn { padding: 7px 12px; font-size: 13px; }
+  #hm-folder-open.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 800; }
   .spend { position: absolute; top: 12px; right: 12px; z-index: 1200; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px var(--drawer-shadow); width: 250px; font-size: 12.5px; }
   .spend-hd { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line-2); font-size: 12.5px; }
   .spend-hd button { background: none; border: 0; cursor: pointer; color: var(--mute); font-size: 14px; line-height: 1; padding: 0 4px; }
@@ -603,6 +610,7 @@
         </div>
         <div class="threads" id="threads"></div>
       </div>
+      <div id="scope-banner" class="scope-banner" hidden></div>
       <div class="starthere" id="starthere"></div>
       <div class="hm-collapsible" id="filters-wrap"><div class="hd">Filters <span class="note" id="filters-summary" style="margin:0;font-weight:400"></span><span class="chev">▾</span></div><div class="bd">
       <div class="hm-filters">
@@ -627,7 +635,14 @@
       </div></div>
       <div class="area-note" id="folder-note" hidden style="background:var(--ink);color:var(--paper)"><span id="folder-text"></span><span class="grow"></span><button type="button" id="folder-select-all">Select all</button><button type="button" id="folder-rename">Rename</button><button type="button" id="folder-delete">Delete folder</button><button type="button" id="folder-close">Close</button></div>
       <div class="area-note" id="area-note" hidden><span id="area-text"></span><span class="grow"></span><button type="button" id="area-clear">Clear area</button></div>
-      <div class="hm-sel">
+      <div class="selbar2" id="selbar2">
+        <button class="btn ghost" type="button" id="sel-all-btn">Select all shown</button>
+        <button class="btn ghost" type="button" id="sel-none-btn" hidden>Clear selection</button>
+        <button class="btn primary" type="button" id="sel-folder-btn" hidden>Add to folder</button>
+        <button class="btn primary" type="button" id="sel-email-btn" hidden>Email</button>
+        <span class="note" id="sel-note" style="margin:0"></span>
+      </div>
+      <div class="hm-sel" hidden>
         <label><input type="checkbox" id="sel-all"> Select all shown</label>
         <span id="sel-count">0 selected</span>
         <span class="grow"></span>
@@ -1354,7 +1369,7 @@ function renderHitmap() {
   const list = filtered();
   const total = hm.prospects.length, contacted = hm.prospects.filter(p => p.status === "contacted" || p.status === "replied" || p.status === "customer").length;
   $("hm-stats").textContent = `${list.length.toLocaleString()} shown of ${total.toLocaleString()} · ${contacted} contacted · ${hm.prospects.filter(p => p.email).length.toLocaleString()} with email`;
-  updateSourceLine(list.length); try { filtersSummary(); renderStartHere(); } catch (e) {}
+  updateSourceLine(list.length); try { filtersSummary(); renderStartHere(); renderScope(); renderSelBar(); } catch (e) {}
   // list
   $("hm-list").innerHTML = (list.length > 300 ? list.slice(0, 300) : list).map(p => `
     <div class="pr${hm.active === p.id ? " active" : ""}${isDone(p.id) ? " done" : ""}" data-id="${p.id}">
@@ -1381,7 +1396,7 @@ function renderHitmap() {
   if (r) hm.circle = L.circle([HQ.lat, HQ.lng], { radius: r * 1609.34, color: "#F2B705", weight: 1.5, fillOpacity: .04 }).addTo(hm.map);
   updateSel();
 }
-function updateSel() {
+function updateSel() { try { renderSelBar(); } catch (e) {}
   const shown = filtered();
   shown.forEach(() => {});
   const n = hm.selected.size;
@@ -2299,6 +2314,28 @@ $("spend-toggle").addEventListener("click", () => { const m = $("spend").classLi
 if (localStorage.getItem("awl_spend_min")) { $("spend").classList.add("min"); $("spend-toggle").textContent = "+"; }
 setInterval(() => { if (document.body.classList.contains("admin") && session) loadSpend(); }, 60000);
 
+
+/* ---- scope banner + selection buttons ---- */
+function renderScope() {
+  const b = $("scope-banner"); const bits = [];
+  if (hm.folder) { const f = hm.folders.find(x => x.id === hm.folder); const n = hm.folderItems.filter(i => i.folder_id === hm.folder).length; bits.push(`<span>📁 Inside folder <u>${esc(f ? f.name : "")}</u> · ${n} business${n === 1 ? "" : "es"}${n ? "" : " (empty — add some, or exit to see the map)"}</span><button class="x" type="button" data-scope="folder">Exit folder</button>`); }
+  if (hm.area) bits.push(`<span>▭ Only the box you drew</span><button class="x2" type="button" data-scope="area">Clear box</button>`);
+  b.innerHTML = bits.join(""); b.hidden = !bits.length;
+  const sel = $("hm-folder-open"); sel.classList.toggle("on", !!hm.folder);
+}
+$("scope-banner").addEventListener("click", e => { const b = e.target.closest("[data-scope]"); if (!b) return; if (b.dataset.scope === "folder") openFolder(null); if (b.dataset.scope === "area") setArea(null); });
+function renderSelBar() {
+  const n = hm.selected.size, shown = filtered().length;
+  $("sel-all-btn").textContent = `Select all ${shown.toLocaleString()} shown`; $("sel-all-btn").hidden = !shown || (n >= shown && n > 0);
+  $("sel-none-btn").hidden = !n; $("sel-folder-btn").hidden = !n; $("sel-email-btn").hidden = !n;
+  $("sel-folder-btn").textContent = `Add ${n.toLocaleString()} to folder`; $("sel-email-btn").textContent = `Email ${n.toLocaleString()}`;
+  $("sel-note").textContent = n ? `${n.toLocaleString()} selected` : "";
+}
+$("sel-all-btn").addEventListener("click", () => { filtered().forEach(p => hm.selected.add(p.id)); updateSel(); renderSelBar(); });
+$("sel-none-btn").addEventListener("click", () => { hm.selected.clear(); updateSel(); renderHitmap(); });
+$("sel-folder-btn").addEventListener("click", () => openFolderModal({ ids: [...hm.selected] }));
+$("sel-email-btn").addEventListener("click", () => openComposer());
+
 /* ---- folders ---- */
 hm.folders = []; hm.folderItems = []; hm.folder = null;
 function isDone(pid) { return hm.folderItems.some(it => it.prospect_id === pid && it.done); }
@@ -2307,12 +2344,12 @@ async function loadFolders() {
 }
 function renderFolderSelect() {
   const sel = $("hm-folder-open"); const cur = hm.folder || "";
-  sel.innerHTML = `<option value="">Open folder…</option>` + hm.folders.map(f => { const items = hm.folderItems.filter(i => i.folder_id === f.id); return `<option value="${f.id}">${esc(f.name)} (${items.filter(i => i.done).length}/${items.length})</option>`; }).join("");
+  sel.innerHTML = `<option value="">${hm.folder ? "Exit folder" : "Open folder…"}</option>` + hm.folders.map(f => { const items = hm.folderItems.filter(i => i.folder_id === f.id); return `<option value="${f.id}">${esc(f.name)} (${items.filter(i => i.done).length}/${items.length})</option>`; }).join("");
   sel.value = cur;
   const note = $("folder-note"); note.hidden = !hm.folder;
   if (hm.folder) { const f = hm.folders.find(x => x.id === hm.folder); const items = hm.folderItems.filter(i => i.folder_id === hm.folder); $("folder-text").textContent = `Folder: ${f ? f.name : ""} · ${items.filter(i => i.done).length} of ${items.length} done`; }
 }
-function openFolder(id) { hm.folder = id || null; hm.selected.clear(); renderFolderSelect(); renderHitmap(); }
+function openFolder(id) { hm.folder = id || null; hm.selected.clear(); renderFolderSelect(); renderHitmap(); renderScope(); }
 $("hm-folder-open").addEventListener("change", e => openFolder(e.target.value));
 $("folder-close").addEventListener("click", () => openFolder(null));
 $("folder-select-all").addEventListener("click", () => { filtered().forEach(p => hm.selected.add(p.id)); updateSel(); openComposerHint(); });
@@ -2348,7 +2385,7 @@ $("mf-create").addEventListener("click", async () => {
     if ($("mf-create").dataset.rename) { await api("folder_rename", { folder_id: $("mf-create").dataset.rename, name }); await loadFolders(); closeModal("m-folder"); return; }
     const r = await api("folder_create", { name, ids: folderTargets });
     await loadFolders(); closeModal("m-folder");
-    if (!folderTargets.length) openFolder(r.folder.id);
+    if (folderTargets.length) $("hm-stats").textContent = `Added ${folderTargets.length} to “${name}”. Open it from the folder dropdown when you want to work only that list.`;
   } catch (err) { $("mf-err").textContent = err.message; }
 });
 $("mf-new").addEventListener("keydown", e => { if (e.key === "Enter") $("mf-create").click(); });
