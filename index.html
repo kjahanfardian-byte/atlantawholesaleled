@@ -1907,7 +1907,7 @@ function renderFollowups() {
     const runnable = ps.filter(p => p.email && ["email", "followup"].includes(st.kind));
     const runBtn = $("fu-cards-run"); runBtn.hidden = !runnable.length; runBtn.textContent = st.kind === "followup" ? `Send follow-up to all ${runnable.length}` : `Send email to all ${runnable.length}`;
     runBtn.onclick = () => { hm.selected = new Set(runnable.map(p => p.id)); updateSel(); openComposer(st.kind === "followup" ? "followup" : undefined); };
-    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span> ${certBadge(p.id)}</div>` : retryHtml(p, true)}</div>`).join("");
+    $("fu-cards-grid").innerHTML = ps.map(p => `<div class="fu-card${hm.selected.has(p.id) ? " on" : ""}" data-id="${p.id}"><div class="nm">${esc(p.name)}</div><div class="meta">${esc(p.city || "")}</div>${phoneLines(p).map(x => `<div class="meta">☎ ${esc(x.n)} <span style="color:${x.kind === "person" ? "var(--ink)" : "var(--mute)"}">· ${esc(x.label)}</span></div>`).join("")}${p.email ? `<div class="meta">✉ ${esc(p.email)} <span style="color:var(--ink)">· ${esc(emailLabel(p))}</span> ${certBadge(p.id)}</div>` : retryHtml(p, true)}${!p.contact_name && hm.template.has_apollo_key && p.website ? `<div class="meta" style="margin-top:4px"><button class="btn ghost" type="button" data-findppl="${p.id}" style="padding:3px 8px;font-size:12px">🔍 Find people</button></div>` : ""}</div>`).join("");
     cardsBox.hidden = false;
   } else cardsBox.hidden = true;
   const rows = staged.filter(x => (!stageFilter || matchStage(x)) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
@@ -2030,7 +2030,7 @@ async function loadPeople(pid) {
   const box = document.getElementById("ppl-" + pid); if (!box) return;
   try {
     const d = await api("contacts", { prospect_id: pid }); const p = hm.prospects.find(x => x.id === pid);
-    box.innerHTML = `<h5>People <span class="note" style="margin:0;text-transform:none;letter-spacing:0">${d.contacts.length ? d.contacts.filter(c => c.verified).length + " verified of " + d.contacts.length : "none yet"}</span><span class="grow"></span><button class="btn ghost" type="button" data-pa="add" style="font-size:12px;padding:3px 9px">+ Add person</button></h5>` + d.contacts.map(c => personHtml(p, c)).join("") + `<div id="ppl-form-${pid}" hidden style="border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:4px"><div class="row"><div class="f"><label>Name</label><input id="pf-name"></div><div class="f"><label>Title</label><input id="pf-title" placeholder="Owner, Purchasing, PM…"></div></div><div class="row"><div class="f"><label>Email</label><input id="pf-email"></div><div class="f"><label>Phone</label><input id="pf-phone"></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:6px"><label style="font-size:13px"><input type="checkbox" id="pf-primary"> send emails here</label><label style="font-size:13px"><input type="checkbox" id="pf-verified"> I’ve spoken to them</label><span class="grow"></span><button class="btn ghost" type="button" data-pa="cancel" style="font-size:12px;padding:4px 9px">Cancel</button><button class="btn primary" type="button" data-pa="save" style="font-size:12px;padding:4px 9px">Save</button></div></div>`;
+    box.innerHTML = `<h5>People <span class="note" style="margin:0;text-transform:none;letter-spacing:0">${d.contacts.length ? d.contacts.filter(c => c.verified).length + " verified of " + d.contacts.length : "none yet"}</span><span class="grow"></span><button class="btn primary" type="button" data-pa="apollo" style="font-size:12px;padding:3px 9px" ${hm.template.has_apollo_key ? "" : "disabled title='Add an Apollo key in Email settings'"}>🔍 Find people</button><button class="btn ghost" type="button" data-pa="add" style="font-size:12px;padding:3px 9px">+ Add person</button></h5>` + d.contacts.map(c => personHtml(p, c)).join("") + `<div id="ppl-form-${pid}" hidden style="border:1px dashed var(--line);border-radius:10px;padding:10px;margin-top:4px"><div class="row"><div class="f"><label>Name</label><input id="pf-name"></div><div class="f"><label>Title</label><input id="pf-title" placeholder="Owner, Purchasing, PM…"></div></div><div class="row"><div class="f"><label>Email</label><input id="pf-email"></div><div class="f"><label>Phone</label><input id="pf-phone"></div></div><div style="display:flex;gap:8px;align-items:center;margin-top:6px"><label style="font-size:13px"><input type="checkbox" id="pf-primary"> send emails here</label><label style="font-size:13px"><input type="checkbox" id="pf-verified"> I’ve spoken to them</label><span class="grow"></span><button class="btn ghost" type="button" data-pa="cancel" style="font-size:12px;padding:4px 9px">Cancel</button><button class="btn primary" type="button" data-pa="save" style="font-size:12px;padding:4px 9px">Save</button></div></div>`;
     box.dataset.editing = "";
   } catch (e) { box.innerHTML = `<h5>People</h5><p class="note">${esc(e.message)}</p>`; }
 }
@@ -2039,6 +2039,17 @@ document.addEventListener("click", async e => {
   const box = b.closest(".ppl"); if (!box) return; const pid = box.id.replace("ppl-", ""); const p = hm.prospects.find(x => x.id === pid);
   const person = b.closest(".person"); const cid = person?.dataset.cid; const act = b.dataset.pa;
   try {
+    if (act === "apollo") {
+      b.disabled = true; b.textContent = "Searching Apollo…";
+      try {
+        const r = await api("enrich", { ids: [pid], use_hunter: false, force_apollo: true });
+        const x = r.results[0] || {};
+        if (x.ok && p) Object.assign(p, { email: x.email || p.email, contact_name: x.contact_name || p.contact_name, contact_title: x.contact_title || p.contact_title, contact_phone: x.contact_phone || p.contact_phone, linkedin: x.linkedin || p.linkedin, employees: x.employees || p.employees, notes: x.notes || p.notes });
+        loadContactsAll(); renderHitmap(); await loadPeople(pid);
+        const box2 = document.getElementById("ppl-" + pid); if (box2 && !(await api("contacts", { prospect_id: pid })).contacts.some(c => (c.sources || []).includes("apollo"))) box2.querySelector("h5").insertAdjacentHTML("beforeend", `<span class="note" style="margin:0;text-transform:none;letter-spacing:0">Apollo has no one listed for this company</span>`);
+      } catch (err) { alert(err.message); b.disabled = false; b.textContent = "🔍 Find people"; }
+      return;
+    }
     if (act === "add") { box.dataset.editing = ""; const f = document.getElementById("ppl-form-" + pid); f.hidden = false; ["pf-name", "pf-title", "pf-email", "pf-phone"].forEach(i => $(i).value = ""); $("pf-primary").checked = false; $("pf-verified").checked = false; $("pf-name").focus(); return; }
     if (act === "cancel") { document.getElementById("ppl-form-" + pid).hidden = true; return; }
     if (act === "save") {
@@ -2056,6 +2067,16 @@ document.addEventListener("click", async e => {
     if (act === "delete") { if (!confirm("Remove this person from the business?")) return; await api("contact_delete", { contact_id: cid }); loadContactsAll(); await loadPeople(pid); return; }
   } catch (err) { alert(err.message); }
 });
+
+
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-findppl]"); if (!b) return; e.stopPropagation();
+  const id = b.dataset.findppl, p = hm.prospects.find(x => x.id === id); if (!p) return;
+  b.disabled = true; b.textContent = "Searching…";
+  try { const r = await api("enrich", { ids: [id], use_hunter: false, force_apollo: true }); const x = r.results[0] || {}; if (x.ok) Object.assign(p, { email: x.email || p.email, contact_name: x.contact_name || p.contact_name, contact_title: x.contact_title || p.contact_title, contact_phone: x.contact_phone || p.contact_phone, linkedin: x.linkedin || p.linkedin, notes: x.notes || p.notes }); loadContactsAll(); renderHitmap(); if ($("hm-side").classList.contains("followups")) renderFollowups(); if (!x.contact_name) b.textContent = "No one listed"; }
+  catch (err) { b.disabled = false; b.textContent = "🔍 Find people"; }
+});
+document.addEventListener("dblclick", e => { if (e.target.closest("[data-findppl]")) e.stopPropagation(); }, true);
 
 /* what each number and email is tied to */
 function phoneLabel(p) {
