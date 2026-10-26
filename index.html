@@ -593,6 +593,7 @@
       </div>
       <div class="hm-fu" id="hm-fu">
         <div class="tools" style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap">
+          <select id="fu-folder" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">All businesses (no folder)</option></select>
           <select id="fu-cat" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">All industries</option></select>
           <select id="fu-biz" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">All businesses in this industry</option></select>
           <select id="fu-stage" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:14px"><option value="">Every step</option></select>
@@ -1924,7 +1925,11 @@ function renderFollowups() {
   const cats = [...new Set(hm.prospects.map(p => p.category).filter(Boolean))].sort();
   const sel = $("fu-cat"); const cur = sel.value; sel.innerHTML = `<option value="">All industries</option>` + cats.map(c => `<option>${esc(c)}</option>`).join(""); sel.value = cur;
   const stSel = $("fu-stage"); const curSt = stSel.value; stSel.innerHTML = `<option value="">Every step</option><option value="ideal">★ Ideal leads (phone + email)</option>` + Object.entries(FU_STAGES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join(""); stSel.value = curSt;
-  const inCat = hm.prospects.filter(p => !sel.value || p.category === sel.value);
+  const fsel = $("fu-folder"); const curF = fsel.value;
+  fsel.innerHTML = `<option value="">All businesses (no folder)</option>` + hm.folders.map(f => { const n = hm.folderItems.filter(i => i.folder_id === f.id).length; return `<option value="${f.id}">📁 ${esc(f.name)} (${n})</option>`; }).join("");
+  fsel.value = curF; fsel.classList.toggle("on", !!fsel.value); fsel.style.background = fsel.value ? "var(--accent)" : ""; fsel.style.color = fsel.value ? "var(--accent-ink)" : ""; fsel.style.fontWeight = fsel.value ? "800" : "";
+  const inFolder = fsel.value ? new Set(hm.folderItems.filter(i => i.folder_id === fsel.value).map(i => i.prospect_id)) : null;
+  const inCat = hm.prospects.filter(p => (!sel.value || p.category === sel.value) && (!inFolder || inFolder.has(p.id)));
   const staged = inCat.map(p => ({ p, stage: fuStage(p) }));
   const bizSel = $("fu-biz"); const curBiz = bizSel.value;
   bizSel.innerHTML = `<option value="">${sel.value ? "All businesses in " + esc(sel.value) : "Pick an industry first"}</option>` + (sel.value ? staged.sort((a, b) => a.p.name.localeCompare(b.p.name)).map(x => `<option value="${x.p.id}">${esc(x.p.name)} — ${FU_STAGES[x.stage].label}</option>`).join("") : "");
@@ -1934,7 +1939,8 @@ function renderFollowups() {
   const actionable = hm.prospects.filter(p => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(fuStage(p))).length;
   $("fu-badge").hidden = actionable === 0; $("fu-badge").textContent = actionable;
   updateScopeBadges();
-  $("fu-chart-title").textContent = view === "all" ? "Follow-up flow · every industry" : view === "industry" ? `Follow-up flow · ${sel.value}` : `${biz.p.name} · where it is and what’s next`;
+  const folderName = fsel.value ? (hm.folders.find(f => f.id === fsel.value) || {}).name : "";
+  $("fu-chart-title").textContent = (folderName ? "📁 " + folderName + " · " : "") + (view === "all" ? "Follow-up flow · every industry" : view === "industry" ? `Follow-up flow · ${sel.value}` : `${biz.p.name} · where it is and what’s next`);
   $("fu-prev").style.visibility = $("fu-next").style.visibility = "visible";
   $("fu-chart-note").textContent = view === "all" ? "Click an industry to open it, or use ◀ ▶ to step through one at a time." : view === "industry" ? "Click a step to open its businesses; double-click a business to email or call." : "Pick another business from the dropdown, or clear it to see the whole industry.";
   const def = fuDiagram(view, staged, sel.value, biz);
@@ -1972,7 +1978,7 @@ function renderFollowups() {
   } else cardsBox.hidden = true;
   const rows = staged.filter(x => (!stageFilter || matchStage(x)) && (!biz || x.p.id === biz.p.id)).sort((a, b) => (FU_STAGES[a.stage].kind === "wait" || FU_STAGES[a.stage].kind === "done" ? 1 : 0) - (FU_STAGES[b.stage].kind === "wait" || FU_STAGES[b.stage].kind === "done" ? 1 : 0) || a.p.name.localeCompare(b.p.name));
   const needHere = staged.filter(x => ["none", "sent_nores", "fu_nores", "bounced", "replied", "noemail"].includes(x.stage)).length;
-  $("fu-summary").textContent = `${rows.length} shown · ${needHere} need action in ${sel.value || "all industries"}`;
+  $("fu-summary").textContent = `${rows.length} shown · ${needHere} need action in ${folderName ? "📁 " + folderName + (sel.value ? " · " + sel.value : "") : (sel.value || "all industries")}`;
   const runnable = rows.filter(x => ["none", "sent_nores"].includes(x.stage) && x.p.email);
   if (stageFilter === "ideal") { const vIdeal = rows.filter(x => hm.contactsAll.some(c => c.prospect_id === x.p.id && c.verified)).length; $("fu-summary").textContent = `${rows.length} ideal leads in ${sel.value || "all industries"} · ${vIdeal} with a verified person`; }
   $("fu-run").disabled = !runnable.length; $("fu-run").textContent = runnable.length ? `Run next step for ${runnable.length} (send ${rows.some(x => x.stage === "none") ? "emails" : "follow-ups"})` : "Run next step for shown";
@@ -1992,6 +1998,7 @@ function renderFollowups() {
     </div>`; }).join("") || `<div class="empty" style="border:0">Nothing here.</div>`;
 }
 $("fu-cat").addEventListener("change", () => { $("fu-biz").value = ""; $("fu-stage").value = ""; fuSelectedStage = ""; renderFollowups(); });
+$("fu-folder").addEventListener("change", () => { $("fu-biz").value = ""; $("fu-stage").value = ""; fuSelectedStage = ""; renderFollowups(); });
 ["fu-biz", "fu-stage"].forEach(id => $(id).addEventListener("change", () => { fuSelectedStage = $("fu-stage").value; renderFollowups(); }));
 $("fu-list").addEventListener("click", async e => {
   const b = e.target.closest("[data-fu]");
@@ -2008,8 +2015,8 @@ $("fu-list").addEventListener("click", async e => {
 });
 $("fu-run").addEventListener("click", () => {
   const sel = $("fu-cat").value, stageFilter = $("fu-stage").value;
-  const bizId = $("fu-biz").value;
-  const rows = hm.prospects.filter(p => (!sel || p.category === sel) && (!bizId || p.id === bizId)).map(p => ({ p, stage: fuStage(p) })).filter(x => (!stageFilter || x.stage === stageFilter) && ["none", "sent_nores"].includes(x.stage) && x.p.email);
+  const bizId = $("fu-biz").value; const fid = $("fu-folder").value; const inF = fid ? new Set(hm.folderItems.filter(i => i.folder_id === fid).map(i => i.prospect_id)) : null;
+  const rows = hm.prospects.filter(p => (!sel || p.category === sel) && (!bizId || p.id === bizId) && (!inF || inF.has(p.id))).map(p => ({ p, stage: fuStage(p) })).filter(x => (!stageFilter || x.stage === stageFilter) && ["none", "sent_nores"].includes(x.stage) && x.p.email);
   if (!rows.length) return;
   const kind = rows.every(x => x.stage === "sent_nores") ? "followup" : "initial";
   hm.selected = new Set(rows.map(x => x.p.id)); updateSel(); openComposer(kind === "followup" ? "followup" : undefined);
