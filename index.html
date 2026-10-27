@@ -292,6 +292,8 @@
   .snap .who.primary { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
   .snap .who .nm { font-weight: 800; font-size: 14.5px; }
   .snap .who .ln { color: var(--ink-2); display: flex; gap: 12px; flex-wrap: wrap; margin-top: 2px; }
+  .phone-st { font-size: 12.5px; color: var(--mute); }
+  .phone-btn { padding: 4px 10px !important; font-size: 12.5px !important; }
   .snap .who .tag { font-size: 11.5px; color: var(--mute); }
   .snap .tl { font-size: 13px; color: var(--ink-2); }
   .snap .tl div { padding: 3px 0; border-bottom: 1px dashed var(--line-2); }
@@ -2118,6 +2120,13 @@ function primaryContact(pid) { return hm.contactsAll.find(c => c.prospect_id ===
 function certBadge(pid) { const c = primaryContact(pid); if (!c) return ""; return `<span class="cert ${esc(c.certainty)}" style="margin-left:4px">${certLabel(c)}</span>`; }
 function loadContactsAll() { api("contacts_all").then(d => { hm.contactsAll = d.contacts || []; renderHitmap(); if ($("hm-side").classList.contains("followups")) renderFollowups(); }).catch(() => {}); }
 
+/* Apollo phone reveal: button/status for one person */
+function phoneAsk(c, attr) {
+  if (!hm.template.has_apollo_key || c.phone || !c.name) return "";
+  if (c.phone_status === "requested") return `<span class="phone-st">☎ Phone requested… checking Apollo</span>`;
+  if (c.phone_status === "none") return `<span class="phone-st">☎ Apollo has no phone for them</span>`;
+  return `<button class="btn ghost phone-btn" type="button" ${attr}="phone" data-cid="${c.id}" title="Uses 1 Apollo credit to match, plus 8 more only if a mobile number is found">☎ Get phone</button>`;
+}
 /* ---- people roster per business ---- */
 const CERT = { verified: "✅ Verified", corroborated: "🟢 Two sources agree", single: "🟡 One source", generic: "⚪ General inbox", unlabeled: "⚪ Name unknown" };
 function certLabel(c) { return CERT[c.certainty] || CERT.unlabeled; }
@@ -2130,6 +2139,7 @@ function personHtml(p, c) {
       ${c.verified ? `<button class="btn ghost" type="button" data-pa="unverify">Unmark verified</button>` : `<button class="btn ghost" type="button" data-pa="verify">✓ Spoke to them</button>`}
       ${c.is_primary || !c.email ? "" : `<button class="btn ghost" type="button" data-pa="primary">Send emails here</button>`}
       ${c.email ? `<button class="btn ghost" type="button" data-pa="email">Email</button>` : ""}
+      ${phoneAsk(c, "data-pa")}
       <button class="btn ghost" type="button" data-pa="edit">Edit</button>
       <button class="btn ghost" type="button" data-pa="delete" style="color:#B42318">Remove</button>
     </div></div>`;
@@ -2171,6 +2181,7 @@ document.addEventListener("click", async e => {
       loadContactsAll(); await loadPeople(pid); return;
     }
     if (act === "edit") { const d = await api("contacts", { prospect_id: pid }); const c = d.contacts.find(x => x.id === cid); const f = document.getElementById("ppl-form-" + pid); f.hidden = false; box.dataset.editing = cid; $("pf-name").value = c.name || ""; $("pf-title").value = c.title || ""; $("pf-email").value = c.email || ""; $("pf-phone").value = c.phone || ""; $("pf-primary").checked = !!c.is_primary; $("pf-verified").checked = !!c.verified; return; }
+    if (act === "phone") { b.disabled = true; b.textContent = "Asking Apollo…"; const r = await api("apollo_phone", { contact_id: cid }); if (r.status !== "found") { await loadPeople(pid); [20000, 60000, 150000].forEach(t => setTimeout(() => { if (document.getElementById("ppl-" + pid)) { loadPeople(pid); loadContactsAll(); } }, t)); if (r.message) alert(r.message); } else { loadContactsAll(); await loadPeople(pid); } return; }
     if (act === "verify" || act === "unverify") { await api("contact_verify", { contact_id: cid, verified: act === "verify", how: "spoke on the phone" }); loadContactsAll(); await loadPeople(pid); return; }
     if (act === "primary") { const r = await api("contact_primary", { prospect_id: pid, contact_id: cid }); if (r.contact && p) { Object.assign(p, { email: r.contact.email, contact_name: r.contact.name, contact_title: r.contact.title, contact_phone: r.contact.phone, linkedin: r.contact.linkedin }); renderHitmap(); openDetail(pid); } loadContactsAll(); return; }
     if (act === "email") { const d = await api("contacts", { prospect_id: pid }); const c = d.contacts.find(x => x.id === cid); if (p && c?.email) { hm.selected = new Set([pid]); updateSel(); openComposer(); setTimeout(() => { $("c-to-input").value = c.email; }, 50); } return; }
@@ -2434,6 +2445,7 @@ function renderSnapshot(id, p0, d) {
   const who = c => `<div class="who${c.is_primary ? " primary" : ""}">
       <div><span class="nm">${c.name ? esc(c.name) : (c.email && genericRe.test(c.email) ? "General inbox" : "Unnamed person")}</span>${c.title ? ` · ${esc(c.title)}` : ""} <span class="cert ${esc(c.certainty)}">${certLabel(c)}</span>${c.is_primary ? ` <span class="cert" style="background:var(--accent);color:var(--accent-ink)">emails go here</span>` : ""}</div>
       <div class="ln">${c.email ? `<span>✉ ${esc(c.email)}</span>` : ""}${c.phone ? `<span>☎ <a href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a> · direct</span>` : ""}${c.linkedin ? `<a href="${esc(c.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</div>
+      ${phoneAsk(c, "data-snap") ? `<div style="margin-top:6px">${phoneAsk(c, "data-snap")}</div>` : ""}
       <div class="tag">from ${esc((c.sources || []).join(" + ") || "you")}${c.confidence ? " · " + c.confidence + "% confidence" : ""}${c.verified_how ? " · " + esc(c.verified_how) : ""}</div></div>`;
   const people = d.contacts.length ? d.contacts.map(who).join("") : `<p class="note" style="margin:0">No one on file yet.${hm.template.has_apollo_key ? " Press Find people to ask Apollo." : ""}</p>`;
   const sent = d.messages.filter(m => m.direction === "out"), got = d.messages.filter(m => m.direction === "in");
@@ -2481,6 +2493,17 @@ function renderSnapshot(id, p0, d) {
 $("snap-body").addEventListener("click", async e => {
   const b = e.target.closest("[data-snap]"); if (!b) return; const id = $("snap-body").dataset.id; const p = hm.prospects.find(x => x.id === id); if (!p) return;
   const a = b.dataset.snap;
+  if (a === "phone") {
+    b.disabled = true; b.textContent = "Asking Apollo…";
+    try {
+      const r = await api("apollo_phone", { contact_id: b.dataset.cid });
+      const redraw = async () => { if (!$("m-snap").classList.contains("open")) return; if ($("snap-body").dataset.id !== id) return; try { renderSnapshot(id, p, await api("snapshot", { id })); } catch {} };
+      await redraw();
+      if (r.status === "requested") [20000, 60000, 150000].forEach(t => setTimeout(() => { redraw(); loadContactsAll(); }, t));
+      else { loadContactsAll(); if (r.message) alert(r.message); }
+    } catch (err) { alert(err.message); b.disabled = false; b.textContent = "☎ Get phone"; }
+    return;
+  }
   if (a === "email") { closeModal("m-snap"); hm.selected = new Set([id]); updateSel(); openComposer(); }
   if (a === "call") { closeModal("m-snap"); openPhone(p); }
   if (a === "detail") { closeModal("m-snap"); document.querySelector('.hm-tabs button[data-tab="prospects"]').click(); openDetail(id); }
