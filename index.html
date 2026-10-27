@@ -2120,6 +2120,22 @@ function primaryContact(pid) { return hm.contactsAll.find(c => c.prospect_id ===
 function certBadge(pid) { const c = primaryContact(pid); if (!c) return ""; return `<span class="cert ${esc(c.certainty)}" style="margin-left:4px">${certLabel(c)}</span>`; }
 function loadContactsAll() { api("contacts_all").then(d => { hm.contactsAll = d.contacts || []; renderHitmap(); if ($("hm-side").classList.contains("followups")) renderFollowups(); }).catch(() => {}); }
 
+/* manual people-search: open TruePeopleSearch prefilled, then paste the number onto the person */
+function tpsAsk(c, attr, city) {
+  if (!c.name || c.phone || /^(general inbox|unnamed)/i.test(c.name)) return "";
+  const q = new URLSearchParams({ name: c.name, citystatezip: [city, "GA"].filter(Boolean).join(", ") });
+  return `<a class="btn ghost phone-btn" href="https://www.truepeoplesearch.com/results?${q}" target="_blank" rel="noopener">TruePeopleSearch</a> <button class="btn ghost phone-btn" type="button" ${attr}="addnum" data-cid="${c.id}">+ Add number</button>`;
+}
+async function addNumber(cid, pid) {
+  const d = await api("contacts", { prospect_id: pid }); const c = d.contacts.find(x => x.id === cid); if (!c) return false;
+  const raw = prompt(`Phone number for ${c.name}:`); if (!raw) return false;
+  const digits = raw.replace(/\D/g, "").replace(/^1(?=\d{10}$)/, "");
+  if (digits.length !== 10) { alert("That doesn't look like a 10-digit number."); return false; }
+  const phone = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  const notes = [c.notes, `Phone ${phone} from TruePeopleSearch (personal line, added ${new Date().toLocaleDateString()})`].filter(Boolean).join("\n");
+  await api("contact_save", { prospect_id: pid, contact: { id: c.id, name: c.name, title: c.title, email: c.email, phone, linkedin: c.linkedin, notes } });
+  return true;
+}
 /* Apollo phone reveal: button/status for one person */
 function phoneAsk(c, attr) {
   if (!hm.template.has_apollo_key || c.phone || !c.name) return "";
@@ -2140,6 +2156,7 @@ function personHtml(p, c) {
       ${c.is_primary || !c.email ? "" : `<button class="btn ghost" type="button" data-pa="primary">Send emails here</button>`}
       ${c.email ? `<button class="btn ghost" type="button" data-pa="email">Email</button>` : ""}
       ${phoneAsk(c, "data-pa")}
+      ${tpsAsk(c, "data-pa", p?.city)}
       <button class="btn ghost" type="button" data-pa="edit">Edit</button>
       <button class="btn ghost" type="button" data-pa="delete" style="color:#B42318">Remove</button>
     </div></div>`;
@@ -2181,6 +2198,7 @@ document.addEventListener("click", async e => {
       loadContactsAll(); await loadPeople(pid); return;
     }
     if (act === "edit") { const d = await api("contacts", { prospect_id: pid }); const c = d.contacts.find(x => x.id === cid); const f = document.getElementById("ppl-form-" + pid); f.hidden = false; box.dataset.editing = cid; $("pf-name").value = c.name || ""; $("pf-title").value = c.title || ""; $("pf-email").value = c.email || ""; $("pf-phone").value = c.phone || ""; $("pf-primary").checked = !!c.is_primary; $("pf-verified").checked = !!c.verified; return; }
+    if (act === "addnum") { if (await addNumber(cid, pid)) { loadContactsAll(); await loadPeople(pid); } return; }
     if (act === "phone") { b.disabled = true; b.textContent = "Asking Apollo…"; const r = await api("apollo_phone", { contact_id: cid }); if (r.status !== "found") { await loadPeople(pid); [20000, 60000, 150000].forEach(t => setTimeout(() => { if (document.getElementById("ppl-" + pid)) { loadPeople(pid); loadContactsAll(); } }, t)); if (r.message) alert(r.message); } else { loadContactsAll(); await loadPeople(pid); } return; }
     if (act === "verify" || act === "unverify") { await api("contact_verify", { contact_id: cid, verified: act === "verify", how: "spoke on the phone" }); loadContactsAll(); await loadPeople(pid); return; }
     if (act === "primary") { const r = await api("contact_primary", { prospect_id: pid, contact_id: cid }); if (r.contact && p) { Object.assign(p, { email: r.contact.email, contact_name: r.contact.name, contact_title: r.contact.title, contact_phone: r.contact.phone, linkedin: r.contact.linkedin }); renderHitmap(); openDetail(pid); } loadContactsAll(); return; }
@@ -2445,7 +2463,7 @@ function renderSnapshot(id, p0, d) {
   const who = c => `<div class="who${c.is_primary ? " primary" : ""}">
       <div><span class="nm">${c.name ? esc(c.name) : (c.email && genericRe.test(c.email) ? "General inbox" : "Unnamed person")}</span>${c.title ? ` · ${esc(c.title)}` : ""} <span class="cert ${esc(c.certainty)}">${certLabel(c)}</span>${c.is_primary ? ` <span class="cert" style="background:var(--accent);color:var(--accent-ink)">emails go here</span>` : ""}</div>
       <div class="ln">${c.email ? `<span>✉ ${esc(c.email)}</span>` : ""}${c.phone ? `<span>☎ <a href="tel:${esc(String(c.phone).replace(/[^\d+]/g, ""))}">${esc(c.phone)}</a> · direct</span>` : ""}${c.linkedin ? `<a href="${esc(c.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ""}</div>
-      ${phoneAsk(c, "data-snap") ? `<div style="margin-top:6px">${phoneAsk(c, "data-snap")}</div>` : ""}
+      ${phoneAsk(c, "data-snap") || tpsAsk(c, "data-snap", p0.city) ? `<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${phoneAsk(c, "data-snap")}${tpsAsk(c, "data-snap", p0.city)}</div>` : ""}
       <div class="tag">from ${esc((c.sources || []).join(" + ") || "you")}${c.confidence ? " · " + c.confidence + "% confidence" : ""}${c.verified_how ? " · " + esc(c.verified_how) : ""}</div></div>`;
   const people = d.contacts.length ? d.contacts.map(who).join("") : `<p class="note" style="margin:0">No one on file yet.${hm.template.has_apollo_key ? " Press Find people to ask Apollo." : ""}</p>`;
   const sent = d.messages.filter(m => m.direction === "out"), got = d.messages.filter(m => m.direction === "in");
@@ -2493,6 +2511,7 @@ function renderSnapshot(id, p0, d) {
 $("snap-body").addEventListener("click", async e => {
   const b = e.target.closest("[data-snap]"); if (!b) return; const id = $("snap-body").dataset.id; const p = hm.prospects.find(x => x.id === id); if (!p) return;
   const a = b.dataset.snap;
+  if (a === "addnum") { try { if (await addNumber(b.dataset.cid, id)) { renderSnapshot(id, p, await api("snapshot", { id })); loadContactsAll(); } } catch (err) { alert(err.message); } return; }
   if (a === "phone") {
     b.disabled = true; b.textContent = "Asking Apollo…";
     try {
