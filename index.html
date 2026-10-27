@@ -1323,7 +1323,7 @@ function initMap() {
 async function loadProspects() {
   try {
     const d = await api("list");
-    hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null }));
+    hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null })); hm.total = d.total || hm.prospects.length;
     hm.template = d.template; hm.loaded = true;
     fillFilters(); renderHitmap();
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
@@ -1395,7 +1395,7 @@ function renderHitmap() {
   const list = filtered();
   const total = hm.prospects.length, contacted = hm.prospects.filter(p => p.status === "contacted" || p.status === "replied" || p.status === "customer").length;
   const vis = hm.prospects.filter(visibleCat);
-  $("hm-stats").textContent = `${list.length.toLocaleString()} shown of ${vis.length.toLocaleString()}${hm.hiddenCats.size ? " (" + hm.hiddenCats.size + " sector" + (hm.hiddenCats.size === 1 ? "" : "s") + " hidden)" : ""} · ${contacted} contacted · ${vis.filter(p => p.email).length.toLocaleString()} with email`;
+  $("hm-stats").textContent = `${list.length.toLocaleString()} shown of ${vis.length.toLocaleString()}${hm.total > hm.prospects.length ? " loaded (" + hm.total.toLocaleString() + " in the database; everything with an email, a contact, a status or a folder is loaded, the rest newest-first)" : ""}${hm.hiddenCats.size ? " (" + hm.hiddenCats.size + " sector" + (hm.hiddenCats.size === 1 ? "" : "s") + " hidden)" : ""} · ${contacted} contacted · ${vis.filter(p => p.email).length.toLocaleString()} with email`;
   updateSourceLine(list.length); try { filtersSummary(); renderStartHere(); renderScope(); renderSelBar(); } catch (e) {}
   // list
   $("hm-list").innerHTML = (list.length > 300 ? list.slice(0, 300) : list).map(p => `
@@ -1818,7 +1818,7 @@ $("au-save").addEventListener("click", async () => {
   $("au-save").disabled = false;
 });
 /* keep the map fresh while the background job works */
-setInterval(() => { if (document.body.classList.contains("admin") && session && !hm.drawMode) api("list").then(d => { const prev = hm.prospects; hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null })); if (JSON.stringify(prev.map(p => [p.id, p.email, p.phone, p.contact_name])) !== JSON.stringify(hm.prospects.map(p => [p.id, p.email, p.phone, p.contact_name]))) { fillFilters(); renderHitmap(); } }).catch(() => {}); }, 90000);
+setInterval(() => { if (document.body.classList.contains("admin") && session && !hm.drawMode) api("list").then(d => { const prev = hm.prospects; hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null })); hm.total = d.total || hm.prospects.length; if (JSON.stringify(prev.map(p => [p.id, p.email, p.phone, p.contact_name])) !== JSON.stringify(hm.prospects.map(p => [p.id, p.email, p.phone, p.contact_name]))) { fillFilters(); renderHitmap(); } }).catch(() => {}); }, 90000);
 api("auto_status").then(d => { $("auto-dot").style.background = (d.config || {}).enabled ? "#2F9E62" : "#9AA3AD"; }).catch(() => {});
 
 
