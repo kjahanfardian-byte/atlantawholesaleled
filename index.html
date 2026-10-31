@@ -272,6 +272,24 @@
   .msg .bd { white-space: pre-wrap; font-size: 14px; margin-top: 8px; line-height: 1.45; max-height: 320px; overflow: auto; }
   .msg .bd.html iframe { width: 100%; height: 320px; border: 0; background: #fff; border-radius: 6px; }
   .reply-box textarea { min-height: 120px; }
+  .hm-pawn { display: none; flex-direction: column; min-height: 0; flex: 1; }
+  .hm-side.pawn .hm-pawn { display: flex; }
+  .hm-side.pawn .hm-filters, .hm-side.pawn .hm-sel, .hm-side.pawn .hm-list, .hm-side.pawn .area-note,
+  .hm-side.pawn .scope-banner, .hm-side.pawn .starthere, .hm-side.pawn .hm-collapsible, .hm-side.pawn .selbar2 { display: none !important; }
+  .hm-pawn .tools { display: flex; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .hm-pawn .tools select, .pw-key input { flex: 1; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); color: var(--ink); font-size: 14px; }
+  .hm-pawn .tools .btn { flex: 1; padding: 8px 10px; font-size: 13.5px; }
+  .pw-key { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .pw-sum { padding: 8px 12px; font-size: 13px; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+  .pw-card { padding: 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .pw-card.on { background: var(--paper-2); box-shadow: inset 3px 0 0 var(--accent); }
+  .pw-card .nm { font-weight: 800; font-size: 15px; }
+  .pw-card .ln { font-size: 13px; color: var(--ink-2); margin-top: 3px; }
+  .pw-card .ln a { color: var(--ink); }
+  .pw-card .area-tag { font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--paper-2); color: var(--mute); margin-left: 6px; }
+  .pw-card .row { display: flex; gap: 8px; margin-top: 8px; align-items: center; }
+  .pw-card select, .pw-card textarea { padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper-2); color: var(--ink); font-size: 13px; font-family: inherit; }
+  .pw-card textarea { width: 100%; min-height: 34px; resize: vertical; margin-top: 6px; }
   .hm-fu { display: none; flex-direction: column; min-height: 0; flex: 1; }
   .hm-side.followups .hm-fu { display: flex; }
   .hm-side.followups .hm-filters, .hm-side.followups .hm-sel, .hm-side.followups .hm-list, .hm-side.followups .area-note,
@@ -608,6 +626,7 @@
       <div class="hm-tabs" role="tablist">
         <button type="button" role="tab" aria-selected="true" data-tab="prospects">Prospects</button>
         <button type="button" role="tab" aria-selected="false" data-tab="inbox">Inbox<span class="badge" id="unread-badge" hidden>0</span></button>
+        <button type="button" role="tab" aria-selected="false" data-tab="pawn">Pawn shops<span class="badge" id="pawn-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
         <button type="button" role="tab" aria-selected="false" data-tab="followups">Follow-ups (flow)<span class="badge" id="fu-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
       </div>
       <div class="hm-fu" id="hm-fu">
@@ -623,6 +642,22 @@
           <button class="btn primary" type="button" id="fu-run" style="padding:7px 12px;font-size:13.5px" disabled>Run next step for shown</button>
         </div>
         <div class="threads" id="fu-list"></div>
+      </div>
+      <div class="hm-pawn" id="hm-pawn">
+        <div class="tools">
+          <select id="pw-area"><option value="">Tucker + Covington</option><option value="Tucker">Tucker only</option><option value="Covington">Covington only</option></select>
+          <select id="pw-status"><option value="">Any status</option><option value="new">New</option><option value="called">Called</option><option value="interested">Interested</option><option value="not_interested">Not interested</option><option value="customer">Customer</option></select>
+        </div>
+        <div class="tools">
+          <button class="btn primary" type="button" id="pw-search">Search Google for pawn shops</button>
+          <button class="btn ghost" type="button" id="pw-csv">Export CSV</button>
+        </div>
+        <div class="pw-key" id="pw-key" hidden>
+          <div style="font-size:13px;color:var(--ink-2);margin-bottom:6px">Google Maps API key for this tab <span id="pw-key-state" style="color:var(--mute)"></span></div>
+          <div style="display:flex;gap:8px"><input id="pw-key-in" type="password" placeholder="AIza…" autocomplete="off"><button class="btn ghost" type="button" id="pw-key-save">Save key</button></div>
+        </div>
+        <div class="pw-sum" id="pw-sum"></div>
+        <div class="threads" id="pw-list"></div>
       </div>
       <div class="hm-inbox" id="hm-inbox">
         <div class="tools">
@@ -1644,10 +1679,106 @@ document.querySelectorAll(".hm-tabs button").forEach(b => b.addEventListener("cl
   document.querySelectorAll(".hm-tabs button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
   $("hm-side").classList.toggle("inbox", b.dataset.tab === "inbox");
   $("hm-side").classList.toggle("followups", b.dataset.tab === "followups");
+  $("hm-side").classList.toggle("pawn", b.dataset.tab === "pawn");
+  pawnShow(b.dataset.tab === "pawn");
   $("fu-chart").hidden = b.dataset.tab !== "followups";
   if (b.dataset.tab === "inbox") loadInbox();
   if (b.dataset.tab === "followups") { api("threads").then(t => { hm.messages = t.messages; renderFollowups(); }).catch(() => renderFollowups()); }
 }));
+/* ---- Pawn shops tab: separate list, Tucker + Covington only ---- */
+const pw = { shops: [], layer: null, markers: {}, on: null, active: false };
+const PW_STATUS = { new: ["New", "#9AA4B2"], called: ["Called", "#4C8DF6"], interested: ["Interested", "#F2C14E"], not_interested: ["Not interested", "#B42318"], customer: ["Customer", "#1B9E5A"] };
+function pawnShow(on) {
+  pw.active = on;
+  if (!hm.map) return;
+  if (!pw.layer) pw.layer = L.layerGroup();
+  if (on) { if (hm.map.hasLayer(hm.layer)) hm.map.removeLayer(hm.layer); pw.layer.addTo(hm.map); loadPawn(true); }
+  else { if (hm.map.hasLayer(pw.layer)) hm.map.removeLayer(pw.layer); if (!hm.map.hasLayer(hm.layer)) hm.layer.addTo(hm.map); }
+}
+async function loadPawn(fit) {
+  try {
+    const d = await api("pawn_list");
+    pw.shops = d.shops || [];
+    $("pw-key").hidden = false;
+    $("pw-key-state").textContent = d.has_key ? "· saved (paste a new one to replace)" : d.has_main_key ? "· none saved, using the main Hit map key" : "· none saved";
+    renderPawn(fit);
+  } catch (e) { $("pw-list").innerHTML = `<div class="empty" style="border:0">${esc(e.message)}</div>`; }
+}
+function pawnShown() {
+  const a = $("pw-area").value, st = $("pw-status").value;
+  return pw.shops.filter(x => (!a || x.area === a) && (!st || x.status === st));
+}
+function renderPawn(fit) {
+  const list = pawnShown();
+  const n = { Tucker: 0, Covington: 0 }; pw.shops.forEach(x => { if (n[x.area] != null) n[x.area]++; });
+  $("pw-sum").textContent = pw.shops.length ? `${list.length} shown · ${n.Tucker} in Tucker · ${n.Covington} in Covington` : "No pawn shops yet. Press Search Google to pull every pawn shop with a Tucker or Covington address.";
+  const badge = $("pawn-badge"); badge.hidden = !pw.shops.length; badge.textContent = pw.shops.length;
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  $("pw-list").innerHTML = list.map(x => {
+    const hrs = x.hours ? (x.hours.split("; ").find(h => h.startsWith(today + ":")) || "") : "";
+    const site = x.website ? (/^https?:/.test(x.website) ? x.website : "https://" + x.website) : "";
+    return `<div class="pw-card${pw.on === x.id ? " on" : ""}" data-id="${x.id}">
+      <div class="nm">${esc(x.name)}<span class="area-tag">${esc(x.area || "")}</span></div>
+      <div class="ln">${esc([x.address, x.city, x.zip].filter(Boolean).join(", "))}</div>
+      ${x.phone ? `<div class="ln">☎ <a href="tel:${esc(x.phone.replace(/[^\d+]/g, ""))}">${esc(x.phone)}</a></div>` : ""}
+      ${site ? `<div class="ln"><a href="${esc(site)}" target="_blank" rel="noopener">${esc(site.replace(/^https?:\/\/(www\.)?/, "").replace(/\/$/, "").slice(0, 48))}</a></div>` : ""}
+      ${x.rating ? `<div class="ln">${x.rating}★ on Google${x.reviews ? ` · ${(+x.reviews).toLocaleString()} reviews` : ""}${hrs ? " · " + esc(hrs) : ""}</div>` : (hrs ? `<div class="ln">${esc(hrs)}</div>` : "")}
+      <div class="row"><select data-pw="status">${Object.entries(PW_STATUS).map(([k, v]) => `<option value="${k}"${x.status === k ? " selected" : ""}>${v[0]}</option>`).join("")}</select></div>
+      <textarea data-pw="notes" placeholder="Notes">${esc(x.notes || "")}</textarea>
+    </div>`;
+  }).join("") || (pw.shops.length ? `<div class="empty" style="border:0">Nothing matches these filters.</div>` : "");
+  pw.layer.clearLayers(); pw.markers = {};
+  const pts = [];
+  list.forEach(x => {
+    if (!x.lat || !x.lng) return;
+    const col = (PW_STATUS[x.status] || PW_STATUS.new)[1];
+    const m = L.circleMarker([x.lat, x.lng], { radius: 9, color: "#111", weight: 2, fillColor: col, fillOpacity: 0.95 })
+      .bindPopup(`<b>${esc(x.name)}</b><br>${esc([x.address, x.city].filter(Boolean).join(", "))}${x.phone ? `<br><a href="tel:${esc(x.phone.replace(/[^\d+]/g, ""))}">${esc(x.phone)}</a>` : ""}`)
+      .on("click", () => pawnFocus(x.id, false));
+    m.addTo(pw.layer); pw.markers[x.id] = m; pts.push([x.lat, x.lng]);
+  });
+  if (fit && pts.length) hm.map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 });
+}
+function pawnFocus(id, pan) {
+  pw.on = id;
+  document.querySelectorAll(".pw-card").forEach(c => c.classList.toggle("on", c.dataset.id === id));
+  const m = pw.markers[id]; if (m && pan) { hm.map.setView(m.getLatLng(), Math.max(hm.map.getZoom(), 14)); m.openPopup(); }
+  const card = document.querySelector(`.pw-card[data-id="${id}"]`); if (card && !pan) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+["pw-area", "pw-status"].forEach(id => $(id).addEventListener("change", () => renderPawn(true)));
+$("pw-list").addEventListener("click", e => {
+  if (e.target.closest("select, textarea, a")) return;
+  const c = e.target.closest(".pw-card"); if (c) pawnFocus(c.dataset.id, true);
+});
+$("pw-list").addEventListener("change", async e => {
+  const c = e.target.closest(".pw-card"); if (!c) return;
+  const field = e.target.dataset.pw; if (!field) return;
+  try {
+    const r = await api("pawn_update", { id: c.dataset.id, [field]: e.target.value });
+    const i = pw.shops.findIndex(x => x.id === c.dataset.id); if (i >= 0) pw.shops[i] = r.shop;
+    if (field === "status") renderPawn(false);
+  } catch (err) { alert(err.message); }
+});
+$("pw-key-save").addEventListener("click", async () => {
+  const v = $("pw-key-in").value.trim(); if (!v) return;
+  try { await api("pawn_key_save", { key: v }); $("pw-key-in").value = ""; loadPawn(false); } catch (err) { alert(err.message); }
+});
+$("pw-search").addEventListener("click", async () => {
+  const b = $("pw-search"); b.disabled = true; b.textContent = "Searching Google…";
+  try {
+    const r = await api("pawn_search", { area: $("pw-area").value });
+    if (r.google_error) alert("Google: " + r.google_error + (r.key_used === "main" ? "\n\nThis used the main Hit map key. Paste the new key in the box below and try again." : ""));
+    await loadPawn(true);
+    $("pw-sum").textContent += ` · last search: ${r.found} pawn shops in town (${r.outside} outside the town lines skipped, ${r.requests} Google requests)`;
+  } catch (err) { alert(err.message); }
+  b.disabled = false; b.textContent = "Search Google for pawn shops";
+});
+$("pw-csv").addEventListener("click", () => {
+  const cols = ["name", "area", "address", "city", "zip", "phone", "website", "rating", "reviews", "status", "notes"];
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [cols.join(","), ...pawnShown().map(x => cols.map(k => q(k === "status" ? (PW_STATUS[x.status] || [x.status])[0] : x[k])).join(","))].join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "pawn-shops-tucker-covington.csv"; a.click();
+});
 ["ib-filter", "ib-q"].forEach(id => $(id).addEventListener("input", renderInbox));
 async function loadInbox() {
   try { const d = await api("threads"); hm.messages = d.messages; renderInbox(); } catch (e) { $("threads").innerHTML = `<div class="empty" style="border:0">${esc(e.message)}</div>`; }
