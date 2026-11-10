@@ -683,7 +683,7 @@
       <div class="hm-filters">
         <input class="full" id="f-q" type="search" placeholder="Type a target: gas stations, dealerships, a company name…">
         <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Quick pull (up to 60)</button><button class="btn dark" type="button" id="f-sweep" style="padding:6px 12px;font-size:13px">Sweep everything</button><select id="f-sweep-scope" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px"><option value="box">in the box I drew</option><option value="25">within 25 mi</option><option value="40" selected>within 40 mi</option><option value="60">within 60 mi</option><option value="100">within 100 mi</option><option value="ga">all of Georgia</option></select></div>
-        <select id="f-radius"><option value="">Any distance</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25">Within 25 mi</option><option value="40">Within 40 mi</option><option value="60">Within 60 mi</option><option value="100">Within 100 mi</option><option value="150">Within 150 mi</option></select>
+        <select id="f-radius"><option value="">Any distance (statewide, contacts only)</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25" selected>Within 25 mi</option><option value="40">Within 40 mi</option><option value="60">Within 60 mi</option><option value="100">Within 100 mi</option><option value="150">Within 150 mi</option></select>
         <div id="f-status" class="stchips" aria-label="Status filter"><button type="button" data-s="new" class="pill new" aria-pressed="false">new</button><button type="button" data-s="contacted" class="pill contacted" aria-pressed="false">contacted</button><button type="button" data-s="replied" class="pill replied" aria-pressed="false">replied</button><button type="button" data-s="called" class="pill called" aria-pressed="false">called</button><button type="button" data-s="customer" class="pill customer" aria-pressed="false">customer</button><button type="button" data-s="skip" class="pill skip" aria-pressed="false">skip</button></div>
         <select id="f-city"><option value="">All cities</option></select>
         <select id="f-county"><option value="">All counties</option></select>
@@ -1404,12 +1404,21 @@ function initMap() {
   hm.cluster = hm.layer.zoomToShowLayer ? hm.layer : null;
   setTimeout(() => hm.map.invalidateSize(), 100);
 }
-async function loadProspects() {
+const LIST_API = "https://byqzgilixiyvcxcszjrv.supabase.co/functions/v1/awl-list";
+let listSeq = 0;
+async function loadProspects(opts = {}) {
+  const seq = ++listSeq;
   try {
-    const d = await api("list");
-    hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null })); hm.total = d.total || hm.prospects.length;
+    const radius = $("f-radius").value || "all";
+    $("hm-stats").textContent = radius === "all" ? "Loading the statewide working set…" : `Loading businesses within ${radius} mi…`;
+    const r = await fetch(LIST_API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: session && session.token, radius, lat: HQ.lat, lng: HQ.lng }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { if (r.status === 401) logout(); throw new Error(d.error || `Request failed (${r.status})`); }
+    if (seq !== listSeq) return; // a newer load superseded this one
+    hm.prospects = d.prospects.map(p => ({ ...p, dist: (p.lat && p.lng) ? miles(HQ, p) : null })); hm.total = d.total || hm.prospects.length; hm.scope = d.scope; hm.capped = !!d.capped;
     hm.template = d.template; hm.loaded = true;
     fillFilters(); renderHitmap();
+    if (opts.reloadOnly) { loadContactsAll(); return; }
     api("threads").then(t => { hm.messages = t.messages; renderInbox(); }).catch(() => {});
     loadFolders(); pollSweeps(); loadContactsAll(); loadSpend(); loadHiddenCats();
     ["f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal"].forEach(id => { const el = $(id); if (el) el.checked = false; });
@@ -1440,7 +1449,8 @@ function filtered() {
     (!hm.area || (p.lat && p.lng && hm.area.contains([p.lat, p.lng]))) &&
     (!hm.folder || hm.folderItems.some(it => it.folder_id === hm.folder && it.prospect_id === p.id)));
 }
-["f-q", "f-radius", "f-city", "f-county", "f-cat", "f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal", "f-tier"].forEach(id => $(id).addEventListener("input", renderHitmap));
+["f-q", "f-city", "f-county", "f-cat", "f-hasemail", "f-hasphone", "f-noemail", "f-verified", "f-ideal", "f-tier"].forEach(id => $(id).addEventListener("input", renderHitmap));
+$("f-radius").addEventListener("change", () => loadProspects({ reloadOnly: true }));
 $("f-hasemail").addEventListener("change", e => { if (e.target.checked) $("f-noemail").checked = false; });
 $("f-noemail").addEventListener("change", e => { if (e.target.checked) $("f-hasemail").checked = false; });
 function updateSourceLine(shown) {
@@ -1479,7 +1489,7 @@ function renderHitmap() {
   const list = filtered();
   const total = hm.prospects.length, contacted = hm.prospects.filter(p => p.status === "contacted" || p.status === "replied" || p.status === "customer").length;
   const vis = hm.prospects.filter(visibleCat);
-  $("hm-stats").textContent = `${list.length.toLocaleString()} shown of ${vis.length.toLocaleString()}${hm.total > hm.prospects.length ? " loaded (" + hm.total.toLocaleString() + " in the database; everything with an email, a contact, a status or a folder is loaded, the rest newest-first)" : ""}${hm.hiddenCats.size ? " (" + hm.hiddenCats.size + " sector" + (hm.hiddenCats.size === 1 ? "" : "s") + " hidden)" : ""} · ${contacted} contacted · ${vis.filter(p => p.email).length.toLocaleString()} with email`;
+  $("hm-stats").textContent = `${list.length.toLocaleString()} shown of ${vis.length.toLocaleString()} loaded (${hm.scope || "…"}${hm.capped ? ", capped" : ""}; ${(hm.total || 0).toLocaleString()} on file) · ${contacted} contacted · ${vis.filter(p => p.email).length.toLocaleString()} with email`;
   updateSourceLine(list.length); try { filtersSummary(); renderStartHere(); renderScope(); renderSelBar(); } catch (e) {}
   // list
   $("hm-list").innerHTML = (list.length > 300 ? list.slice(0, 300) : list).map(p => `
