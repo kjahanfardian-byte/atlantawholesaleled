@@ -300,6 +300,14 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
+  .pq-head { padding: 10px 8px 12px; border-bottom: 2px solid var(--line); margin-bottom: 4px; }
+  .pq-head .lbl { font-size: 14px; margin-bottom: 6px; }
+  .pq-head .bar.big { height: 10px; }
+  .pq-prog { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--mute); }
+  .pq-prog .bar { flex: 1; height: 6px; background: var(--paper-2); border-radius: 3px; overflow: hidden; }
+  .pq-prog .bar i, .pq-head .bar i { display: block; height: 100%; background: #F2B705; transition: width .4s; }
+  .pq-prog.done .bar i { background: #2F9E62; } .pq-prog.error .bar i { background: #B42318; }
+  .pq-head .bar { height: 10px; background: var(--paper-2); border-radius: 5px; overflow: hidden; }
   .prod-tabs { display: flex; gap: 6px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
   .prod-tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 8px 12px; font: 700 14px Archivo, Arial, sans-serif; color: var(--mute); cursor: pointer; }
   .prod-tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
@@ -2729,7 +2737,7 @@ async function papi(action, payload = {}) {
   return d;
 }
 let prodTimer = null;
-$("hm-products").addEventListener("click", () => { openModal("m-products"); $("pd-cat").innerHTML = `<option value="auto">Auto: pick from the product name</option>` + CATS.map(c => `<option>${esc(c)}</option>`).join(""); $("pd-cat").value = "auto"; refreshProducts(); clearInterval(prodTimer); prodTimer = setInterval(() => { if ($("m-products").classList.contains("open")) refreshProducts(); else clearInterval(prodTimer); }, 8000); });
+$("hm-products").addEventListener("click", () => { openModal("m-products"); $("pd-cat").innerHTML = `<option value="auto">Auto: pick from the product name</option>` + CATS.map(c => `<option>${esc(c)}</option>`).join(""); $("pd-cat").value = "auto"; refreshProducts(); clearInterval(prodTimer); prodTimer = setInterval(() => { if ($("m-products").classList.contains("open")) refreshProducts(); else clearInterval(prodTimer); }, 3000); });
 document.querySelectorAll("#m-products .prod-tabs button").forEach(b => b.addEventListener("click", () => { document.querySelectorAll("#m-products .prod-tabs button").forEach(x => x.classList.toggle("on", x === b)); ["drop", "queue", "list"].forEach(k => $("pt-" + k).hidden = b.dataset.pt !== k); }));
 $("pd-add").addEventListener("click", async () => {
   const text = $("pd-text").value.trim(); if (!text) return;
@@ -2743,7 +2751,12 @@ async function refreshProducts() {
     const [q, l] = await Promise.all([papi("queue_list"), papi("list")]);
     const open = q.queue.filter(x => ["pending", "working"].includes(x.status)).length;
     $("pq-count").textContent = open ? `(${open})` : ""; $("pl-count").textContent = `(${l.products.length})`;
-    $("pq-list").innerHTML = q.queue.length ? q.queue.map(x => `<div class="prod-row" data-id="${x.id}"><div><div class="t">${esc(x.title || "(name from Amazon)")}</div><div class="m">${esc(x.summary || "")}</div><div class="m">${x.category ? "→ " + esc(x.category) + " · " : ""}${esc(x.url)}${x.error ? ` · <span style="color:#B42318">${esc(x.error)}</span>` : ""}</div></div><span class="st ${x.status}">${x.status === "pending" ? "waiting for extension" : x.status === "working" ? "extension working…" : x.status}</span><div class="acts">${x.status === "error" ? `<button class="btn ghost" type="button" data-qa="retry">Retry</button>` : ""}<button class="btn ghost" type="button" data-qa="del">Remove</button></div></div>`).join("") : `<p class="note">Nothing queued. Paste links on the Drop-off tab.</p>`;
+    const done = q.queue.filter(x => x.status === "done").length, errs = q.queue.filter(x => x.status === "error").length, total = q.queue.length;
+    const pct = total ? Math.round(q.queue.reduce((a, x) => a + (x.status === "done" ? 100 : x.status === "working" ? (x.progress || 0) : 0), 0) / total) : 0;
+    const head = total ? `<div class="pq-head"><div class="lbl"><b>${done} of ${total} on the site · ${pct}%</b>${errs ? ` · <span style="color:#B42318">${errs} failed</span>` : ""}</div><div class="bar big"><i style="width:${pct}%"></i></div></div>` : "";
+    $("pq-list").innerHTML = head + (q.queue.length ? q.queue.map((x, i) => `<div class="prod-row" data-id="${x.id}"><div style="flex:1;min-width:0"><div class="t">${i + 1}. ${esc(x.title || "(name from Amazon)")}</div><div class="m">${esc(x.summary || "")}</div><div class="m">${x.category ? "→ " + esc(x.category) + " · " : ""}${esc(x.url)}${x.error ? ` · <span style="color:#B42318">${esc(x.error)}</span>` : ""}</div>
+      <div class="pq-prog ${x.status}"><div class="bar"><i style="width:${x.status === "done" ? 100 : x.status === "working" ? (x.progress || 0) : 0}%"></i></div><span>${x.status === "done" ? "100% · on the site" : x.status === "working" ? `${x.progress || 0}% · ${esc(x.step || "working")}` : x.status === "error" ? "failed" : "0% · waiting for the extension"}</span></div></div>
+      <div class="acts">${x.status === "error" ? `<button class="btn ghost" type="button" data-qa="retry">Retry</button>` : ""}<button class="btn ghost" type="button" data-qa="del">Remove</button></div></div>`).join("") : `<p class="note">Nothing queued. Paste links on the Drop-off tab.</p>`);
     const last = q.queue.find(x => x.status === "done" && x.finished_at);
     $("pq-ext").textContent = q.queue.some(x => x.status === "working") ? "The extension is working on one now." : (open ? "Waiting for the extension. It checks for work every 30 seconds while Chrome is open." : "");
     $("pl-list").innerHTML = l.products.length ? l.products.map(p => `<div class="prod-row" data-id="${p.id}"><img src="${esc(p.images[0] || "")}" alt=""><div><div class="t">${esc(p.title)}</div><div class="m">${esc(p.category || "")} · ${p.images.length} photo${p.images.length === 1 ? "" : "s"} · ${(p.specs || []).length} specs · ${new Date(p.created_at).toLocaleDateString()}${p.status !== "published" ? " · hidden" : ""}</div><div class="m">${esc((p.description || "").slice(0, 160))}</div></div><div class="acts"><select data-pa="cat" style="font-size:12px;padding:4px 6px">${CATS.map(c => `<option ${c === p.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select><button class="btn ghost" type="button" data-pa="hide">${p.status === "published" ? "Hide" : "Show"}</button><button class="btn ghost" type="button" data-pa="src">Amazon</button><button class="btn ghost" type="button" data-pa="del" style="color:#B42318">Delete</button></div></div>`).join("") : `<p class="note">No products added through the drop-off yet. The 33 built-in products stay as they are.</p>`;
