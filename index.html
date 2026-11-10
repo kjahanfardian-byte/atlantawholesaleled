@@ -300,6 +300,9 @@
   .fu-chart-head { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--paper); }
   .fu-viewport { flex: 1; position: relative; overflow: hidden; cursor: grab; background: var(--bg); }
   .fu-viewport.dragging { cursor: grabbing; }
+  .prod-row.issue { background: #FFF1F0; border-left: 4px solid #B42318; border-radius: 6px; }
+  .pq-issues { background: #FDE2E1; color: #B42318; border: 0; border-radius: 999px; padding: 3px 10px; font: 700 12.5px Archivo, Arial, sans-serif; cursor: pointer; margin-left: 8px; }
+  .pq-head .lbl { display: flex; align-items: center; gap: 4px; }
   .pq-head { padding: 10px 8px 12px; border-bottom: 2px solid var(--line); margin-bottom: 4px; }
   .pq-head .lbl { font-size: 14px; margin-bottom: 6px; }
   .pq-head .bar.big { height: 10px; }
@@ -2753,17 +2756,26 @@ async function refreshProducts() {
     $("pq-count").textContent = open ? `(${open})` : ""; $("pl-count").textContent = `(${l.products.length})`;
     const done = q.queue.filter(x => x.status === "done").length, errs = q.queue.filter(x => x.status === "error").length, total = q.queue.length;
     const pct = total ? Math.round(q.queue.reduce((a, x) => a + (x.status === "done" ? 100 : x.status === "working" ? (x.progress || 0) : 0), 0) / total) : 0;
-    const head = total ? `<div class="pq-head"><div class="lbl"><b>${done} of ${total} on the site · ${pct}%</b>${errs ? ` · <span style="color:#B42318">${errs} failed</span>` : ""}</div><div class="bar big"><i style="width:${pct}%"></i></div></div>` : "";
-    $("pq-list").innerHTML = head + (q.queue.length ? q.queue.map((x, i) => `<div class="prod-row" data-id="${x.id}"><div style="flex:1;min-width:0"><div class="t">${i + 1}. ${esc(x.title || "(name from Amazon)")}</div><div class="m">${esc(x.summary || "")}</div><div class="m">${x.category ? "→ " + esc(x.category) + " · " : ""}${esc(x.url)}${x.error ? ` · <span style="color:#B42318">${esc(x.error)}</span>` : ""}</div>
+    const head = total ? `<div class="pq-head"><div class="lbl"><b>${done} of ${total} on the site · ${pct}%</b>${errs ? ` · <button type="button" class="pq-issues" id="pq-issues-btn">⚠ ${errs} need attention</button>` : ""}<span class="grow"></span><label style="font-weight:400;font-size:12.5px"><input type="checkbox" id="pq-only-issues" ${hm.pqOnlyIssues ? "checked" : ""}> show only issues</label></div><div class="bar big"><i style="width:${pct}%"></i></div></div>` : "";
+    const rows = hm.pqOnlyIssues ? q.queue.filter(x => x.status === "error") : q.queue;
+    $("pq-list").innerHTML = head + (rows.length ? rows.map((x, i) => `<div class="prod-row ${x.status === "error" ? "issue" : ""}" data-id="${x.id}"><div style="flex:1;min-width:0"><div class="t">${x.status === "error" ? "⚠ " : ""}${q.queue.indexOf(x) + 1}. ${esc(x.title || "(name from Amazon)")}</div><div class="m">${esc(x.summary || "")}</div><div class="m">${x.category ? "→ " + esc(x.category) + " · " : ""}${esc(x.url)}${x.error ? ` · <span style="color:#B42318">${esc(x.error)}</span>` : ""}</div>
       <div class="pq-prog ${x.status}"><div class="bar"><i style="width:${x.status === "done" ? 100 : x.status === "working" ? (x.progress || 0) : 0}%"></i></div><span>${x.status === "done" ? "100% · on the site" : x.status === "working" ? `${x.progress || 0}% · ${esc(x.step || "working")}` : x.status === "error" ? "failed" : "0% · waiting for the extension"}</span></div></div>
-      <div class="acts">${x.status === "error" ? `<button class="btn ghost" type="button" data-qa="retry">Retry</button>` : ""}<button class="btn ghost" type="button" data-qa="del">Remove</button></div></div>`).join("") : `<p class="note">Nothing queued. Paste links on the Drop-off tab.</p>`);
+      <div class="acts">${x.status === "error" ? `<button class="btn primary" type="button" data-qa="retry">Retry</button><button class="btn ghost" type="button" data-qa="link">Change link</button>` : ""}<button class="btn ghost" type="button" data-qa="del">Remove</button></div></div>`).join("") : `<p class="note">${hm.pqOnlyIssues ? "No issues." : "Nothing queued. Paste links on the Drop-off tab."}</p>`);
+    const ib = $("pq-issues-btn"); if (ib) ib.onclick = () => { hm.pqOnlyIssues = true; refreshProducts(); };
+    const oc = $("pq-only-issues"); if (oc) oc.onchange = () => { hm.pqOnlyIssues = oc.checked; refreshProducts(); };
     const last = q.queue.find(x => x.status === "done" && x.finished_at);
     $("pq-ext").textContent = q.queue.some(x => x.status === "working") ? "The extension is working on one now." : (open ? "Waiting for the extension. It checks for work every 30 seconds while Chrome is open." : "");
     $("pl-list").innerHTML = l.products.length ? l.products.map(p => `<div class="prod-row" data-id="${p.id}"><img src="${esc(p.images[0] || "")}" alt=""><div><div class="t">${esc(p.title)}</div><div class="m">${esc(p.category || "")} · ${p.images.length} photo${p.images.length === 1 ? "" : "s"} · ${(p.specs || []).length} specs · ${new Date(p.created_at).toLocaleDateString()}${p.status !== "published" ? " · hidden" : ""}</div><div class="m">${esc((p.description || "").slice(0, 160))}</div></div><div class="acts"><select data-pa="cat" style="font-size:12px;padding:4px 6px">${CATS.map(c => `<option ${c === p.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select><button class="btn ghost" type="button" data-pa="hide">${p.status === "published" ? "Hide" : "Show"}</button><button class="btn ghost" type="button" data-pa="src">Amazon</button><button class="btn ghost" type="button" data-pa="del" style="color:#B42318">Delete</button></div></div>`).join("") : `<p class="note">No products added through the drop-off yet. The 33 built-in products stay as they are.</p>`;
     $("pl-list").dataset.json = JSON.stringify(l.products.map(p => ({ id: p.id, status: p.status, source_url: p.source_url })));
   } catch (e) { $("pq-ext").textContent = e.message; }
 }
-$("pq-list").addEventListener("click", async e => { const b = e.target.closest("[data-qa]"); if (!b) return; const id = b.closest(".prod-row").dataset.id; if (b.dataset.qa === "retry") await papi("queue_update", { id, status: "pending" }); if (b.dataset.qa === "del") await papi("queue_delete", { ids: [id] }); refreshProducts(); });
+$("pq-list").addEventListener("click", async e => {
+  const b = e.target.closest("[data-qa]"); if (!b) return; const id = b.closest(".prod-row").dataset.id;
+  if (b.dataset.qa === "retry") await papi("queue_update", { id, status: "pending" });
+  if (b.dataset.qa === "link") { const u = prompt("Paste the product's own Amazon link (the one with /dp/ in it):"); if (u && /^https?:\/\//.test(u.trim())) await papi("queue_update", { id, status: "pending", url: u.trim() }); else return; }
+  if (b.dataset.qa === "del") await papi("queue_delete", { ids: [id] });
+  refreshProducts();
+});
 $("pq-clear").addEventListener("click", async () => { const q = await papi("queue_list"); await papi("queue_delete", { ids: q.queue.filter(x => x.status === "done").map(x => x.id) }); refreshProducts(); });
 $("pl-list").addEventListener("change", async e => { const sel = e.target.closest('select[data-pa="cat"]'); if (!sel) return; const id = sel.closest(".prod-row").dataset.id; await papi("update", { id, fields: { category: sel.value } }); loadLiveProducts(); });
 $("pl-list").addEventListener("click", async e => {
