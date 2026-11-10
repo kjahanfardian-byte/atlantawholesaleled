@@ -793,7 +793,7 @@
 https://www.amazon.com/…/dp/B0XXXXXXXX
 2x4 LED Backlit Panel Light with Emergency Battery Backup
 3CCT 30/40/50/60/72W selectable"></textarea></div>
-    <div class="row"><div class="field"><label for="pd-cat">Category on the site</label><select id="pd-cat"></select></div></div>
+    <div class="row"><div class="field"><label for="pd-cat">Category on the site</label><select id="pd-cat"></select><span class="note">Auto reads the name: panel/troffer → Panels, wall pack/flood/area → Outdoor, high bay/canopy → High bay, exit/emergency → Exit and emergency, driver → Power supplies, slipfitter/tenon/bracket → Mounts.</span></div></div>
     <div class="actions"><span class="note" id="pd-msg" style="margin:0"></span><span class="grow"></span><button class="btn ghost" type="button" data-close="m-products">Close</button><button class="btn primary" type="button" id="pd-add">Add to queue</button></div>
   </div>
   <div id="pt-queue" hidden><div id="pq-list" class="prod-rows"></div><div class="actions"><span class="note" style="margin:0" id="pq-ext"></span><span class="grow"></span><button class="btn ghost" type="button" id="pq-clear">Clear finished</button><button class="btn ghost" type="button" data-close="m-products">Close</button></div></div>
@@ -1151,6 +1151,7 @@ async function loadLiveProducts() {
   } catch (e) { console.warn("live products", e); }
 }
 loadLiveProducts();
+setInterval(loadLiveProducts, 60000);
 
 /* Drawer */
 const drawer = document.getElementById("drawer");
@@ -2718,7 +2719,7 @@ async function papi(action, payload = {}) {
   return d;
 }
 let prodTimer = null;
-$("hm-products").addEventListener("click", () => { openModal("m-products"); $("pd-cat").innerHTML = CATS.map(c => `<option>${esc(c)}</option>`).join(""); $("pd-cat").value = "Panels"; refreshProducts(); clearInterval(prodTimer); prodTimer = setInterval(() => { if ($("m-products").classList.contains("open")) refreshProducts(); else clearInterval(prodTimer); }, 8000); });
+$("hm-products").addEventListener("click", () => { openModal("m-products"); $("pd-cat").innerHTML = `<option value="auto">Auto: pick from the product name</option>` + CATS.map(c => `<option>${esc(c)}</option>`).join(""); $("pd-cat").value = "auto"; refreshProducts(); clearInterval(prodTimer); prodTimer = setInterval(() => { if ($("m-products").classList.contains("open")) refreshProducts(); else clearInterval(prodTimer); }, 8000); });
 document.querySelectorAll("#m-products .prod-tabs button").forEach(b => b.addEventListener("click", () => { document.querySelectorAll("#m-products .prod-tabs button").forEach(x => x.classList.toggle("on", x === b)); ["drop", "queue", "list"].forEach(k => $("pt-" + k).hidden = b.dataset.pt !== k); }));
 $("pd-add").addEventListener("click", async () => {
   const text = $("pd-text").value.trim(); if (!text) return;
@@ -2732,15 +2733,16 @@ async function refreshProducts() {
     const [q, l] = await Promise.all([papi("queue_list"), papi("list")]);
     const open = q.queue.filter(x => ["pending", "working"].includes(x.status)).length;
     $("pq-count").textContent = open ? `(${open})` : ""; $("pl-count").textContent = `(${l.products.length})`;
-    $("pq-list").innerHTML = q.queue.length ? q.queue.map(x => `<div class="prod-row" data-id="${x.id}"><div><div class="t">${esc(x.title || "(name from Amazon)")}</div><div class="m">${esc(x.summary || "")}</div><div class="m">${esc(x.url)}${x.error ? ` · <span style="color:#B42318">${esc(x.error)}</span>` : ""}</div></div><span class="st ${x.status}">${x.status === "pending" ? "waiting for extension" : x.status === "working" ? "extension working…" : x.status}</span><div class="acts">${x.status === "error" ? `<button class="btn ghost" type="button" data-qa="retry">Retry</button>` : ""}<button class="btn ghost" type="button" data-qa="del">Remove</button></div></div>`).join("") : `<p class="note">Nothing queued. Paste links on the Drop-off tab.</p>`;
+    $("pq-list").innerHTML = q.queue.length ? q.queue.map(x => `<div class="prod-row" data-id="${x.id}"><div><div class="t">${esc(x.title || "(name from Amazon)")}</div><div class="m">${esc(x.summary || "")}</div><div class="m">${x.category ? "→ " + esc(x.category) + " · " : ""}${esc(x.url)}${x.error ? ` · <span style="color:#B42318">${esc(x.error)}</span>` : ""}</div></div><span class="st ${x.status}">${x.status === "pending" ? "waiting for extension" : x.status === "working" ? "extension working…" : x.status}</span><div class="acts">${x.status === "error" ? `<button class="btn ghost" type="button" data-qa="retry">Retry</button>` : ""}<button class="btn ghost" type="button" data-qa="del">Remove</button></div></div>`).join("") : `<p class="note">Nothing queued. Paste links on the Drop-off tab.</p>`;
     const last = q.queue.find(x => x.status === "done" && x.finished_at);
     $("pq-ext").textContent = q.queue.some(x => x.status === "working") ? "The extension is working on one now." : (open ? "Waiting for the extension. It checks for work every 30 seconds while Chrome is open." : "");
-    $("pl-list").innerHTML = l.products.length ? l.products.map(p => `<div class="prod-row" data-id="${p.id}"><img src="${esc(p.images[0] || "")}" alt=""><div><div class="t">${esc(p.title)}</div><div class="m">${esc(p.category || "")} · ${p.images.length} photo${p.images.length === 1 ? "" : "s"} · ${(p.specs || []).length} specs · ${new Date(p.created_at).toLocaleDateString()}${p.status !== "published" ? " · hidden" : ""}</div><div class="m">${esc((p.description || "").slice(0, 160))}</div></div><div class="acts"><button class="btn ghost" type="button" data-pa="hide">${p.status === "published" ? "Hide" : "Show"}</button><button class="btn ghost" type="button" data-pa="src">Amazon</button><button class="btn ghost" type="button" data-pa="del" style="color:#B42318">Delete</button></div></div>`).join("") : `<p class="note">No products added through the drop-off yet. The 33 built-in products stay as they are.</p>`;
+    $("pl-list").innerHTML = l.products.length ? l.products.map(p => `<div class="prod-row" data-id="${p.id}"><img src="${esc(p.images[0] || "")}" alt=""><div><div class="t">${esc(p.title)}</div><div class="m">${esc(p.category || "")} · ${p.images.length} photo${p.images.length === 1 ? "" : "s"} · ${(p.specs || []).length} specs · ${new Date(p.created_at).toLocaleDateString()}${p.status !== "published" ? " · hidden" : ""}</div><div class="m">${esc((p.description || "").slice(0, 160))}</div></div><div class="acts"><select data-pa="cat" style="font-size:12px;padding:4px 6px">${CATS.map(c => `<option ${c === p.category ? "selected" : ""}>${esc(c)}</option>`).join("")}</select><button class="btn ghost" type="button" data-pa="hide">${p.status === "published" ? "Hide" : "Show"}</button><button class="btn ghost" type="button" data-pa="src">Amazon</button><button class="btn ghost" type="button" data-pa="del" style="color:#B42318">Delete</button></div></div>`).join("") : `<p class="note">No products added through the drop-off yet. The 33 built-in products stay as they are.</p>`;
     $("pl-list").dataset.json = JSON.stringify(l.products.map(p => ({ id: p.id, status: p.status, source_url: p.source_url })));
   } catch (e) { $("pq-ext").textContent = e.message; }
 }
 $("pq-list").addEventListener("click", async e => { const b = e.target.closest("[data-qa]"); if (!b) return; const id = b.closest(".prod-row").dataset.id; if (b.dataset.qa === "retry") await papi("queue_update", { id, status: "pending" }); if (b.dataset.qa === "del") await papi("queue_delete", { ids: [id] }); refreshProducts(); });
 $("pq-clear").addEventListener("click", async () => { const q = await papi("queue_list"); await papi("queue_delete", { ids: q.queue.filter(x => x.status === "done").map(x => x.id) }); refreshProducts(); });
+$("pl-list").addEventListener("change", async e => { const sel = e.target.closest('select[data-pa="cat"]'); if (!sel) return; const id = sel.closest(".prod-row").dataset.id; await papi("update", { id, fields: { category: sel.value } }); loadLiveProducts(); });
 $("pl-list").addEventListener("click", async e => {
   const b = e.target.closest("[data-pa]"); if (!b) return; const id = b.closest(".prod-row").dataset.id; const meta = JSON.parse($("pl-list").dataset.json || "[]").find(x => x.id === id) || {};
   if (b.dataset.pa === "hide") await papi("update", { id, fields: { status: meta.status === "published" ? "hidden" : "published" } });
