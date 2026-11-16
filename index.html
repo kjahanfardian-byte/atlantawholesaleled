@@ -1088,7 +1088,7 @@ const SIL = [
 
 /* Product photos are embedded in the PHOTOS block at the bottom of the page (built from the originals,
    trimmed and centered on a uniform square). A product's photos field is [[label, key], ...]. */
-function photoSrc(key) { return (window.PHOTOS && window.PHOTOS[key]) || null; }
+function photoSrc(key) { if (/^https?:\/\//.test(key || "")) return key; return (window.PHOTOS && window.PHOTOS[key]) || null; }
 function imgFail(el, cat) { el.parentNode.innerHTML = SIL[cat]; }
 
 const selected = new Set();
@@ -1118,7 +1118,7 @@ search.classList.remove("search"); search.classList.add("search"); search.style.
 
 function imageFor(p, i, which = 0) {
   const key = p.photos && p.photos[which] ? p.photos[which][1] : null;
-  const src = p.img || (key && photoSrc(key));
+  const src = (p.live && key) ? photoSrc(key) : (p.img || (key && photoSrc(key)));
   if (src) return `<img src="${src}" alt="${p.name}" loading="lazy" onerror="imgFail(this, ${p.cat})">`;
   return SIL[p.cat];
 }
@@ -1177,7 +1177,7 @@ async function loadLiveProducts() {
     for (const p of d.products || []) {
       const specs = (p.specs || []).map(x => Array.isArray(x) ? x : [x.label || x[0], x.value || x[1]]).filter(x => x[0] && x[1]);
       const cat = Math.max(0, CATS.indexOf(p.category));
-      PRODUCTS.push({ name: p.title, cat, key: specs.slice(0, 3).map(x => x[1]).filter(v => v.length <= 22), desc: p.description || p.summary || "", specs, img: p.images[0] || null, imgs: p.images, live: true, id: p.id });
+      PRODUCTS.push({ name: p.title, cat, key: specs.slice(0, 3).map(x => x[1]).filter(v => v.length <= 22), desc: p.description || p.summary || "", specs, img: p.images[0] || null, imgs: p.images, photos: (p.images || []).length > 1 ? p.images.map((u, n) => ["Photo " + (n + 1), u]) : [], live: true, id: p.id });
     }
     render();
   } catch (e) { console.warn("live products", e); }
