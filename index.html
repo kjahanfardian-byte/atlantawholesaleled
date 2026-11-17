@@ -1251,19 +1251,32 @@ document.getElementById("b-cancel").addEventListener("click", () => setSelecting
 document.getElementById("b-all").addEventListener("click", () => { visibleIndices().forEach(i => selected.add(i)); render(); updateBar(); });
 document.getElementById("b-clear").addEventListener("click", () => { selected.clear(); render(); updateBar(); });
 
+/* one product photo -> a 600px JPEG for the PDF. Photos from storage are cross-origin, so they are loaded with CORS
+   (otherwise the canvas is tainted and the export throws); anything that fails or stalls comes back as null and the
+   product simply prints without a picture instead of blocking the whole catalog. */
+const jpegCache = new Map();
 function toJpeg(src) {
-  return new Promise(resolve => {
-    if (!src) return resolve(null);
+  if (!src) return Promise.resolve(null);
+  if (jpegCache.has(src)) return jpegCache.get(src);
+  const job = new Promise(resolve => {
     const im = new Image();
+    if (/^https?:/.test(src) && !src.startsWith(location.origin)) im.crossOrigin = "anonymous";
+    const timer = setTimeout(() => { im.src = ""; resolve(null); }, 20000);
     im.onload = () => {
-      const c = document.createElement("canvas"); c.width = 600; c.height = 600;
-      const x = c.getContext("2d"); x.fillStyle = "#ffffff"; x.fillRect(0, 0, 600, 600);
-      x.drawImage(im, 0, 0, 600, 600);
-      resolve(c.toDataURL("image/jpeg", 0.86));
+      clearTimeout(timer);
+      try {
+        const c = document.createElement("canvas"); c.width = 600; c.height = 600;
+        const x = c.getContext("2d"); x.fillStyle = "#ffffff"; x.fillRect(0, 0, 600, 600);
+        const s = Math.min(560 / im.naturalWidth, 560 / im.naturalHeight), w = im.naturalWidth * s, h = im.naturalHeight * s;
+        x.drawImage(im, (600 - w) / 2, (600 - h) / 2, w, h);   // keep the photo's shape, centered
+        resolve(c.toDataURL("image/jpeg", 0.86));
+      } catch (e) { console.warn("catalog image skipped", src, e); resolve(null); }
     };
-    im.onerror = () => resolve(null);
+    im.onerror = () => { clearTimeout(timer); resolve(null); };
     im.src = src;
   });
+  jpegCache.set(src, job);
+  return job;
 }
 
 async function buildPdf() {
@@ -1271,12 +1284,15 @@ async function buildPdf() {
   if (!items.length) return;
   if (!window.jspdf) { bStatus.hidden = false; bStatus.textContent = "The PDF library didn’t load. Check your connection and reload the page."; return; }
   const btn = document.getElementById("b-build"); btn.disabled = true;
-  bStatus.hidden = false; bStatus.textContent = "Preparing images…";
-  const images = [];
-  for (const p of items) {
-    const key = p.photos && p.photos[0] ? p.photos[0][1] : null;
-    images.push(await toJpeg(p.img || (key && photoSrc(key))));
-  }
+  bStatus.hidden = false; bStatus.textContent = `Preparing images… 0 of ${items.length}`;
+  // all photos load at once (six at a time) instead of one after another
+  let doneCount = 0;
+  const srcs = items.map(p => { const key = p.photos && p.photos[0] ? p.photos[0][1] : null; return p.img || (key && photoSrc(key)); });
+  const images = new Array(items.length).fill(null);
+  let next = 0;
+  await Promise.all(Array.from({ length: 6 }, async () => {
+    while (next < srcs.length) { const i = next++; images[i] = await toJpeg(srcs[i]); doneCount++; bStatus.textContent = `Preparing images… ${doneCount} of ${items.length}`; }
+  }));
   bStatus.textContent = "Laying out pages…";
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "mm", format: "letter" });
