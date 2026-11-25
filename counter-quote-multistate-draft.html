@@ -13,10 +13,11 @@ button,.button{font:inherit;font-weight:640;background:#eeeef1;color:var(--ink);
 .line-area{margin-top:11px}.line{display:grid;grid-template-columns:minmax(104px,2fr) minmax(52px,.55fr) minmax(74px,1fr) minmax(55px,.8fr) auto;gap:8px;align-items:center;border-top:1px solid #e7e7eb;padding:8px 0}.line strong,.line small{display:block;overflow-wrap:anywhere}.line small{color:var(--muted)}.line output{text-align:right;font-weight:660;font-variant-numeric:tabular-nums}.line button{min-width:30px;min-height:30px}.sku{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}.sku select{margin:0}.line input{font-variant-numeric:tabular-nums}
 details{border-top:1px solid #e6e6ea;margin-top:10px;padding-top:8px}summary{font-size:12px;font-weight:650;cursor:pointer;min-height:24px}summary:focus-visible{outline-offset:3px}.registry{margin-top:8px}.checks{display:flex;gap:8px;align-items:flex-start;font-size:12px;margin:8px 0}.checks input{margin-top:3px;accent-color:var(--blue)}
 .calculations{margin:12px 0 10px;padding:8px 10px;border-radius:7px;background:#f7f7f9;border:1px solid #eeeef1;font-variant-numeric:tabular-nums}.total-row+.total-row{margin-top:4px}.grand{font-size:15px;font-weight:730;border-top:1px solid #e0e0e5;padding-top:6px}.estimate-footer{margin-top:9px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}.status{font-size:11px;color:var(--muted)}.error{color:#a02e20}.secondary{color:var(--blueText)}:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
-dialog{border:1px solid var(--line);border-radius:13px;padding:20px;width:min(92vw,520px);max-height:90vh;color:var(--ink);background:var(--paper);box-shadow:0 18px 60px #11152329}dialog::backdrop{background:#17171952}dialog h2{font-size:21px;margin-bottom:7px}.modalbody{margin:12px 0;white-space:pre-wrap}.empty{padding:15px;text-align:center}.issue{display:block;margin-top:4px}
+dialog{border:1px solid var(--line);border-radius:13px;padding:20px;width:min(92vw,650px);max-height:90vh;color:var(--ink);background:var(--paper);box-shadow:0 18px 60px #11152329}dialog::backdrop{background:#17171952}dialog h2{font-size:21px;margin-bottom:7px}.modalbody{margin:12px 0;white-space:pre-wrap}.empty{padding:15px;text-align:center}.issue{display:block;margin-top:4px}
 @media(max-width:760px){.wrap{padding:17px 13px}.grid{grid-template-columns:1fr}.card{padding:13px}.top>div{padding:5px 13px}.brand small{display:none}}
 @media(max-width:430px){.line{grid-template-columns:1fr 1.1fr 1fr auto}.line .item{grid-column:1/-1}.pair{grid-template-columns:1fr}.contacts{grid-template-columns:1fr 1fr}.sku select,.sku button,.estimate-footer button,.fields input,.fields textarea,select#customers,.line input{min-height:40px}}
-.fields select{display:block;width:100%;margin-top:3px;min-height:33px;padding:6px 8px;border:1px solid #cccdd1;border-radius:6px;font:inherit;color:var(--ink);background:#fff}.req{font-size:9px;font-weight:750;color:#0060ba;white-space:nowrap}.address{margin:0;border:1px solid #dedfe2;border-radius:7px;min-width:0;padding:8px}.address legend{font-size:11px;font-weight:700;padding:0 3px}.address .fields{margin:2px 0}.fields [aria-invalid=true]{border-color:#b93225;background:#fff6f5}.customer-tools{margin:5px 0 9px}.customer-tools button{min-height:28px;font-size:11px}.badge.warn{background:#fff0df;color:#7f430a}.badge.ready{background:#eaf3ff;color:#0053a8}#customerError:not(:empty){margin:8px 0}#customerForm{border-top:1px solid var(--line);padding-top:10px;margin-top:8px}#registry .fields{margin-top:10px}#compareAddress{margin-top:8px} .fields .checks input[type=checkbox]{display:inline-block;width:14px;height:14px;min-height:0;margin:2px 0 0;flex:none;appearance:auto;padding:0} .inline-error{display:block;color:#a02e20;font-size:10px;margin-top:3px}</style></head><body>
+.fields select{display:block;width:100%;margin-top:3px;min-height:33px;padding:6px 8px;border:1px solid #cccdd1;border-radius:6px;font:inherit;color:var(--ink);background:#fff}.req{font-size:9px;font-weight:750;color:#0060ba;white-space:nowrap}.address{margin:0;border:1px solid #dedfe2;border-radius:7px;min-width:0;padding:8px}.address legend{font-size:11px;font-weight:700;padding:0 3px}.address .fields{margin:2px 0}.fields [aria-invalid=true]{border-color:#b93225;background:#fff6f5}.customer-tools{margin:5px 0 9px}.customer-tools button{min-height:28px;font-size:11px}.badge.warn{background:#fff0df;color:#7f430a}.badge.ready{background:#eaf3ff;color:#0053a8}#customerError:not(:empty){margin:8px 0}#customerForm{border-top:1px solid var(--line);padding-top:10px;margin-top:8px}#registry .fields{margin-top:10px}#compareAddress{margin-top:8px} .fields .checks input[type=checkbox]{display:inline-block;width:14px;height:14px;min-height:0;margin:2px 0 0;flex:none;appearance:auto;padding:0} .inline-error{display:block;color:#a02e20;font-size:10px;margin-top:3px}.qb-notes{border:1px solid #e1e2e5;border-radius:8px;padding:10px 12px;background:#f5f5f7;margin:10px 0}.qb-notes header{display:flex;gap:6px;justify-content:space-between;align-items:center;flex-wrap:wrap}.qb-notes pre{font:inherit;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;margin:8px 0 0}.qb-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}.qb-note-error{margin:5px 0 9px}.qb-activity{margin:5px 0 9px}.qb-actions button:disabled{opacity:.55}
+</style></head><body>
 <header class="top"><div><div class="brand"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 15.5a5.2 5.2 0 1 1 7 0l-.8 1.5H9.3zM9.6 20h4.8M12 2v1.4M4.5 6l1 1M19.5 6l-1 1"/></svg></span>Atlanta Wholesale LED <small>Staff counter</small></div><span class="badge">Sandbox · Sample data</span></div></header>
 <main class="wrap"><div class="eyebrow">Sales workspace</div><h1>Build a counter quote</h1><p class="intro">Find a customer, add items, and review an estimate. Sample only, no QuickBooks connection.</p>
 <div class="grid"><section class="card" aria-labelledby="customerHeading">
@@ -78,11 +79,14 @@ dialog{border:1px solid var(--line);border-radius:13px;padding:20px;width:min(92
 <div class="sku"><select id="sku" aria-label="Catalog SKU"></select><button id="addLine" type="button">+ Add item</button></div>
 <div id="lines" class="line-area"></div>
 <div class="calculations"><div class="total-row"><span>Items subtotal</span><output id="subtotal">$0.00</output></div><div class="total-row"><span>Tax</span><span class="sub">Not calculated in this demo</span></div><div class="total-row grand"><span>Demo estimate total</span><output id="total">$0.00</output></div></div>
-<details><summary>Optional quote details</summary><div class="fields"><label>Job or reference<input id="reference" maxlength="100" autocomplete="off"></label><label>Counter notes<textarea id="notes" maxlength="350" rows="2"></textarea></label></div></details>
+<details><summary>Optional quote details</summary><div class="fields"><label>Job or reference<input id="reference" maxlength="100" autocomplete="off"></label><label>Internal counter notes<textarea id="notes" rows="2"></textarea><span class="sub">Private to staff. Space for timestamp lines is checked at review (4,000 total characters).</span></label></div></details>
 <div class="estimate-footer"><p class="status" id="quoteStatus" role="status">Nothing is sent or synced.</p><button type="button" class="primary" id="review">Review estimate</button></div>
 </section></div>
 </main>
-<dialog id="reviewDialog" aria-labelledby="reviewHeading"><h2 id="reviewHeading">Review demo estimate</h2><p class="sub">This is a sample. Saving keeps it in this open page only. It does not create an estimate in QuickBooks or send anything.</p><div class="modalbody" id="summary"></div><div class="actions"><button type="button" id="back">Back to quote</button><button type="button" class="primary" id="saveDemo">Save demo estimate</button></div></dialog>
+<dialog id="reviewDialog" aria-labelledby="reviewHeading"><h2 id="reviewHeading">Review demo estimate</h2><p class="sub">This is a sample. Saving keeps it in this open page only. Use Forward to simulate a QuickBooks estimate. Nothing is sent, synced, charged, or emailed.</p><div class="modalbody" id="summary"></div>
+<section class="qb-notes" aria-labelledby="qbNoteTitle"><header><strong id="qbNoteTitle">QuickBooks private note (simulated)</strong><span class="sub" id="qbNoteCount"></span></header><pre id="qbNote" aria-live="polite"></pre></section>
+<p id="noteLimitError" role="alert" class="status error qb-note-error" hidden></p><p id="reviewActivityStatus" role="status" class="status qb-activity"></p>
+<div class="actions"><button type="button" id="back">Back to quote</button><div class="qb-actions"><button type="button" class="primary" id="saveDemo">Save demo estimate</button><button type="button" id="forwardDemo">Simulate QuickBooks forward</button></div></div></dialog>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -302,18 +306,76 @@ $('review').onclick=()=>{
  const c=selectedCustomer(), totals=showTotals();
  if(!lines.length||!totals.allValid){$('quoteStatus').textContent='Enter valid quantities and prices before review.';$('quoteStatus').classList.add('error');$('lines').querySelector('input:invalid')?.focus();return;}
  const showRegistry=c.type==='business', reg=showRegistry?renderRegistry():null;
- reviewSnapshot={customer:{...c},lines:lines.map(l=>({...l})),total:totals.cents,reference:$('reference').value.trim(),notes:$('notes').value.trim(),registry:reg};
+ reviewSnapshot={customer:{...c},lines:lines.map(l=>({...l})),total:totals.cents,reference:$('reference').value.trim(),notes:$('notes').value,registry:reg};
  reviewedRevision=revision;
- $('summary').textContent=[c.company||c.buyer,'Buyer: '+c.buyer,'Billing: '+(c.differentBilling?c.billing:'Same as buyer'),c.fulfillment==='delivery'?'Deliver to: '+[c.shipStreet,c.shipCity,c.shipState,c.shipZip].join(', '):'Pickup','',...lines.map(l=>l.qty+' × '+l.sku+' at '+fmt(l.price)+' = '+fmt(l.qty*l.price)),'','Estimate total: '+fmt(totals.cents)+' (tax not calculated)',showRegistry?'Registry: '+(reg.entityConfirmed?'Entity confirmed':'Not confirmed')+' · Buyer: '+(reg.buyer?'Confirmed':'Not confirmed')+' · Principal office: '+reg.comparison:'',reviewSnapshot.reference?'Job: '+reviewSnapshot.reference:'',reviewSnapshot.notes?'Notes: '+reviewSnapshot.notes:''].join('\n').trimEnd();
+ reviewKey=JSON.stringify(reviewSnapshot);
+ $('summary').textContent=[c.company||c.buyer,'Buyer: '+c.buyer,'Billing: '+(c.differentBilling?c.billing:'Same as buyer'),c.fulfillment==='delivery'?'Deliver to: '+[c.shipStreet,c.shipCity,c.shipState,c.shipZip].join(', '):'Pickup','',...lines.map(l=>l.qty+' × '+l.sku+' at '+fmt(l.price)+' = '+fmt(l.qty*l.price)),'','Estimate total: '+fmt(totals.cents)+' (tax not calculated)',showRegistry?'Registry: '+(reg.entityConfirmed?'Entity confirmed':'Not confirmed')+' · Buyer: '+(reg.buyer?'Confirmed':'Not confirmed')+' · Principal office: '+reg.comparison:'',reviewSnapshot.reference?'Job: '+reviewSnapshot.reference:''].join('\n').trimEnd();
+ renderReviewNotes();
  $('reviewDialog').showModal();
 };
 $('back').onclick=()=>{$('reviewDialog').close();$('review').focus();};
+const NOTE_LIMIT=4000;
+const activityBySnapshot=new Map();
+const atlantaClock=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit',timeZoneName:'short'});
+let reviewKey=null;
+function makeEvent(kind,at=new Date()){
+ return {kind,iso:at.toISOString(),local:atlantaClock.format(at)};
+}
+function activityText(e){
+ return (e.kind==='save'?'Saved (demo)':'Forwarded to QuickBooks (simulated)')+' • '+e.local+' • '+e.iso;
+}
+function privateNote(original,events){
+ return original+(events.length?(original?'\n\n':'')+events.map(activityText).join('\n'):'');
+}
+function noteFits(original,events,now){
+ const projected=[...events];if(!projected.some(e=>e.kind==='save'))projected.push(makeEvent('save',now));if(!projected.some(e=>e.kind==='forward'))projected.push(makeEvent('forward',now));
+ return privateNote(original,projected).length<=NOTE_LIMIT;
+}
+function renderReviewNotes(){
+ if(!reviewSnapshot)return;
+ const existing=activityBySnapshot.get(reviewKey);
+ const notes=privateNote(reviewSnapshot.notes,existing?.events||[]);
+ $('qbNote').textContent=notes||'No internal notes yet.';
+ $('qbNoteCount').textContent=notes.length+' / '+NOTE_LIMIT+' characters';
+ $('saveDemo').disabled=!!existing?.saved;
+ $('forwardDemo').disabled=!existing?.saved||!!existing?.outbox;
+ $('reviewActivityStatus').textContent=existing?.outbox?'Forward simulation recorded. Nothing was sent.':existing?.saved?'Saved locally. Optional: simulate forwarding the saved estimate.':'Save first to enable the optional Forward simulation.';
+ const fits=noteFits(reviewSnapshot.notes,existing?.events||[],new Date());
+ $('noteLimitError').hidden=fits;$('noteLimitError').textContent=fits?'':'Internal notes plus the two timestamp lines exceed 4,000 characters. Shorten the notes before saving. Nothing was changed.';
+ if(!fits){$('saveDemo').disabled=true;$('forwardDemo').disabled=true;}
+}
+function requireFreshReview(){
+ if(reviewSnapshot&&reviewedRevision===revision&&form.hidden&&!intakeIssues(selectedCustomer()).length&&lines.length&&lines.every(valid)&&$('reviewDialog').open)return true;
+ if($('reviewDialog').open)$('reviewDialog').close();reviewSnapshot=null;reviewKey=null;
+ $('quoteStatus').textContent='Details changed since review. Review the current estimate again.';$('quoteStatus').classList.add('error');$('review').focus();return false;
+}
 $('saveDemo').onclick=()=>{
- if(!reviewSnapshot||reviewedRevision!==revision||intakeIssues(selectedCustomer()).length||!form.hidden||!lines.length||!lines.every(valid)){
-  if($('reviewDialog').open)$('reviewDialog').close();reviewSnapshot=null;
-  $('quoteStatus').textContent='Details changed since review. Review the current estimate again.';$('quoteStatus').classList.add('error');$('review').focus();return;
- }
- draftSaved=reviewSnapshot;reviewSnapshot=null;$('reviewDialog').close();$('quoteStatus').textContent='Demo estimate saved in this tab · '+fmt(draftSaved.total)+' · Nothing sent.';$('quoteStatus').classList.remove('error');$('review').focus();
+ if(!requireFreshReview())return;
+ if(activityBySnapshot.get(reviewKey)?.saved){renderReviewNotes();return;}
+ const now=new Date(), events=[makeEvent('save',now)];
+ if(!noteFits(reviewSnapshot.notes,events,now)){renderReviewNotes();return;}
+ const saved={...reviewSnapshot};
+ activityBySnapshot.set(reviewKey,{saved,events,outbox:null});
+ draftSaved=saved;
+ $('quoteStatus').textContent='Demo estimate saved in this tab · '+fmt(draftSaved.total)+' · Nothing sent.';
+ $('quoteStatus').classList.remove('error');
+ renderReviewNotes();$('forwardDemo').focus();
+};
+$('forwardDemo').onclick=()=>{
+ if(!requireFreshReview())return;
+ const activity=activityBySnapshot.get(reviewKey);if(!activity?.saved||activity.outbox){renderReviewNotes();return;}
+ const events=[...activity.events,makeEvent('forward')];
+ const note=privateNote(activity.saved.notes,events);
+ if(note.length>NOTE_LIMIT){$('noteLimitError').hidden=false;$('noteLimitError').textContent='Timestamp would exceed the 4,000-character private-note limit. Nothing was sent.';return;}
+ // Mock payload only. No live IDs, API client, network calls, or user-facing memo.
+ const estimate={CustomerRef:{value:'DEMO-CUSTOMER-'+activity.saved.customer.id},
+   Line:activity.saved.lines.map(l=>({Amount:l.qty*l.price/100,DetailType:'SalesItemLineDetail',SalesItemLineDetail:{ItemRef:{value:l.sku},Qty:l.qty,UnitPrice:l.price/100}})),
+   PrivateNote:note};
+ activity.events=events;
+ activity.outbox={simulated:true,estimate};
+ $('quoteStatus').textContent='QuickBooks forward simulated in this tab · Nothing sent.';
+ $('quoteStatus').classList.remove('error');
+ renderReviewNotes();$('back').focus();
 };
 selectMatches();renderCustomer();restoreRegistry();addLine(catalog[0].sku,4);addLine(catalog[3].sku,6);
 </script></body></html>
