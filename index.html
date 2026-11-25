@@ -507,6 +507,91 @@
   .drawer-foot { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: var(--paper); }
   .drawer-foot .nop { font-size: 14px; color: var(--ink-2); }
 </style>
+<style id="awl-staff-ui">
+/* Staff workspace only; the public catalog keeps its original theme. */
+#hitmap{--bg:#f3f3f5;--paper:#fff;--paper-2:#f5f5f7;--ink:#1e1f22;--ink-2:#383b43;--mute:#62666f;--line:#dedfe4;--line-2:#ebecf0;--accent:#0866cb;--accent-ink:#fff;--drawer-shadow:rgba(28,35,51,.16);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color-scheme:light;isolation:isolate}
+#hitmap [hidden]{display:none!important}
+#hitmap :focus-visible{outline:2px solid #0866cb;outline-offset:2px}
+#hitmap .btn{min-height:33px;padding:6px 10px!important;font:650 12px/1.25 inherit;font-family:inherit;font-weight:650;font-size:12px!important;white-space:normal;border-radius:6px}
+#hitmap .btn.ghost{background:#f1f1f3;border:1px solid #dedfe4;color:#252831}
+#hitmap .btn.ghost:hover{background:#e8e9ee}
+#hitmap .btn.primary{background:#0866cb;border:1px solid #0866cb;color:#fff}
+#hitmap .btn.primary:hover{background:#0658b3}
+#hitmap .btn.dark{background:#eaf0f8;border:1px solid #d8e2ef;color:#203e62}
+.awl-staff-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;min-height:53px;padding:8px 17px;background:#ececef;border-bottom:1px solid #d6d7dc}
+.awl-staff-identity{display:flex;align-items:center;gap:9px;min-width:0;font-weight:740;letter-spacing:-.015em;white-space:nowrap}
+.awl-staff-logo{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;background:#fff;border:1px solid #d7d9e0;color:#0758a9;flex:none}
+.awl-staff-logo svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.awl-staff-actions{justify-self:end;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.awl-staff-segments{display:inline-flex;align-items:center;padding:2px;border-radius:8px;background:#e0e1e6;border:1px solid #d3d5db;gap:2px}
+.awl-staff-segments button{font:inherit;font-weight:600;line-height:1.25;min-height:30px;white-space:nowrap;border:1px solid transparent;background:none;color:#464955;border-radius:6px;padding:5px 12px;cursor:pointer}
+.awl-staff-segments button[aria-selected=true],.awl-staff-segments button[aria-pressed=true]{background:#fff;border-color:#d1d4dc;color:#064f9a;box-shadow:0 1px 2px #1516270d}
+.awl-staff-panel{display:flex;flex:1;min-height:0;flex-direction:column;min-width:0}
+.awl-counter{background:#f4f4f6}
+.awl-counter-banner{align-items:center;justify-content:space-between;display:flex;gap:8px;padding:9px 17px;background:#fff;border-bottom:1px solid var(--line);color:#4c525b;font-size:12px}
+.awl-counter-banner strong{color:#212528}
+.awl-counter iframe{display:block;width:100%;flex:1;min-height:0;border:0;background:#f4f4f6}
+#hitmap .hm-top{justify-content:space-between;gap:12px;padding:10px 17px;position:relative;z-index:1250}
+.awl-prospect-title{min-width:0}.awl-prospect-title h2{font-family:inherit;letter-spacing:-.025em;font-size:19px;line-height:1.15}
+#hitmap .hm-top .stats{display:block;font-size:11px;line-height:1.35;margin-top:2px;color:#5f646e}
+.awl-prospect-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.awl-tools{position:relative}
+.awl-tools>summary,.awl-bulk-trigger>summary,.awl-selected-extra>summary,.awl-today>summary{list-style:none;cursor:pointer;font-weight:660}
+.awl-tools>summary::-webkit-details-marker,.awl-bulk-trigger>summary::-webkit-details-marker,.awl-selected-extra>summary::-webkit-details-marker,.awl-today>summary::-webkit-details-marker{display:none}
+.awl-tools-panel{position:absolute;right:0;top:calc(100% + 6px);width:min(344px,calc(100vw - 24px));max-height:min(70vh,530px);overflow:auto;background:#fff;border:1px solid #d8dbe2;border-radius:10px;z-index:1300;box-shadow:0 12px 32px #19223527;padding:12px}
+.awl-tools-panel h3{font-size:11px;color:#606774;font-weight:700;letter-spacing:.045em;text-transform:uppercase;margin:4px 0 6px}
+.awl-tools-panel .awl-group{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px}
+.awl-tools-panel .awl-group+.awl-group-title{border-top:1px solid #ebecf0;padding-top:10px}
+#hitmap .awl-tools-panel .spend{position:static;width:auto;box-shadow:none;border-radius:7px;margin-top:6px;font-size:11.5px}
+.awl-spend-disclosure>summary{cursor:pointer;font-weight:650;padding:6px 0;color:#34516e}
+#hitmap .hm-body{grid-template-columns:clamp(290px,29vw,400px) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+#hitmap .hm-side{min-width:0;overflow:auto}
+#hitmap .hm-tabs{padding:7px 9px;gap:3px;background:#f6f6f8;flex-shrink:0}
+#hitmap .hm-tabs button{font:650 12px/1.2 inherit;font-family:inherit;font-size:12px;font-weight:650;min-height:34px;border:1px solid transparent;border-radius:6px;padding:6px 7px}
+#hitmap .hm-tabs button[aria-selected=true]{background:#fff;border-color:#d7dbe4;color:#0557a9;box-shadow:0 1px 2px #182d4a0a}
+#hitmap .hm-tabs .badge{background:#e6eef9;color:#225a91;border-radius:5px;padding:1px 4px;font-size:10px;min-width:0}
+#hitmap .hm-tabs .badge[hidden]{display:none!important}
+.awl-search-strip{padding:8px 10px;border-bottom:1px solid #e8e9ec;display:flex;gap:6px;align-items:center;flex-shrink:0}
+.awl-search-strip input{width:100%;min-width:0;font:inherit;border:1px solid #cfd2da;border-radius:7px;padding:8px 10px;background:#fff;color:#222631}
+#hm-side.inbox .awl-search-strip,#hm-side.followups .awl-search-strip,#hm-side.pawn .awl-search-strip,#hm-side.inbox .awl-today,#hm-side.followups .awl-today,#hm-side.pawn .awl-today,#hm-side.inbox .awl-bulk-trigger,#hm-side.followups .awl-bulk-trigger,#hm-side.pawn .awl-bulk-trigger{display:none}
+.awl-today>summary,.awl-bulk-trigger>summary{padding:7px 11px;border-bottom:1px solid #e9ebee;color:#4a5769;font-size:11px}
+.awl-today>summary::after,.awl-bulk-trigger>summary::after,.awl-selected-extra>summary::after{content:" ▾"}
+.awl-today,.awl-bulk-trigger{flex-shrink:0}
+.awl-bulk-trigger>div{padding:5px 10px;border-bottom:1px solid #e9ebee}
+#hitmap .starthere{background:#fbfbfd;padding:8px 10px}
+#hitmap .starthere .row2{gap:5px}
+#hitmap .hm-collapsible>.hd{background:#fafafc;color:#39475a;min-height:31px;padding:6px 11px;border-bottom:1px solid #e9eaf0;font-size:11px}
+#hitmap .hm-collapsible .hm-filters{padding:9px 10px}
+#hitmap .hm-list{min-height:90px}
+#hitmap .pr{padding:9px 10px;gap:8px;border-color:#eceef1}
+#hitmap .pr .nm{font-family:inherit;font-size:13px;font-weight:690}
+#hitmap .pr .meta,#hitmap .pr .right{font-size:11px;line-height:1.4}
+#hitmap .pr:hover,#hitmap .pr.active{background:#eef4fc}
+#hitmap .pill{box-shadow:none;font-size:10px}
+#hitmap .pill.new{background:#e7effa;color:#205584}
+#hitmap .selbar2{padding:6px 10px;background:#edf4fc;gap:5px}
+#hitmap .selbar2 .btn{padding:4px 7px!important;font-size:11px!important;min-height:28px}
+#hitmap .selbar2 #sel-note{order:-1}
+.awl-selected-extra>summary{color:#2c517d;font-size:11px}
+#hitmap .awl-selected-extra .hm-sel{padding:5px 0;border:none}
+#hitmap .hm-side.inbox .awl-selected-extra,#hitmap .hm-side.pawn .awl-selected-extra,#hitmap .hm-side.followups .awl-selected-extra{display:none}
+#hitmap .scope-banner,#hitmap .area-note{background:#eef4fb;color:#294a69;border-color:#d7e4f3}
+#hitmap .scope-banner .x,#hitmap .scope-banner .x2{background:#fff;color:#265176;border:1px solid #c6d8eb}
+#hitmap .marker-cluster{background:#1e66af37}
+#hitmap .marker-cluster div{background:#e9f2ff;border:1px solid #9fbde3;color:#224f83;box-shadow:0 1px 4px #1d263725}
+#hitmap .marker-cluster-medium div,#hitmap .marker-cluster-large div{background:#2875c7;color:white;border-color:#f1f6ff}
+#hitmap .pin.new{background:#5793d2}
+#hitmap #map.style-grey{background:#e6ecf0}
+#hitmap .awl-pane-optional:not([aria-selected=true]){display:none}
+.awl-mobile-views{display:none}
+@media(max-width:760px){
+ .awl-staff-header{grid-template-columns:1fr auto;gap:6px 8px;padding:7px 9px}.awl-staff-identity{grid-column:1;grid-row:1}.awl-staff-actions{grid-column:2;grid-row:1}.awl-staff-segments{grid-column:1/-1;justify-self:stretch}.awl-staff-segments button{flex:1}.awl-staff-logo{width:22px;height:22px}.awl-staff-identity{font-size:12px}
+ #hitmap .hm-top{padding:7px 9px;align-items:flex-start}.awl-prospect-actions{gap:5px}.awl-prospect-title h2{font-size:17px}.awl-prospect-title .stats{max-width:100%}.awl-mobile-views{display:inline-flex}.awl-mobile-views button{padding:5px 8px;font-size:11px;min-height:26px}.awl-tools-panel{max-height:56vh}.awl-tools{position:static}.awl-tools-panel{right:8px;top:100%}
+ #hitmap .hm-body{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr)}#hitmap .hm-body[data-mobile-view=list]>.hm-map,#hitmap .hm-body[data-mobile-view=map]>.hm-side{display:none}#hitmap .hm-body>.hm-side{border-right:0}#hitmap .hm-detail{right:8px;top:8px;width:calc(100% - 16px);max-height:calc(100% - 16px)}
+ .awl-counter-banner{padding:7px 10px;font-size:11px}
+}
+
+</style>
 </head>
 <body>
 
@@ -632,30 +717,39 @@
   </div>
 </div>
 
-<section class="hitmap" id="hitmap" aria-label="Hit map">
-  <div class="hm-top">
-    <h2>Hit map</h2>
-    <span class="stats" id="hm-stats"></span>
-    <span class="grow"></span>
-    <button class="btn primary" type="button" id="hm-discover" style="padding:9px 14px;font-size:14px">Find businesses</button>
-    <button class="btn ghost" type="button" id="hm-enrich">Find contacts</button>
-    <button class="btn ghost" type="button" id="hm-auto">Auto-find <span id="auto-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9AA3AD;margin-left:4px"></span></button>
-    <button class="btn ghost" type="button" id="hm-folder-new">Create folder</button>
-    <select id="hm-folder-open" class="btn ghost" style="padding:9px 12px;font-size:14px;max-width:220px"><option value="">Open folder…</option></select>
-    <button class="btn ghost" type="button" id="hm-add">Add prospect</button>
-    <button class="btn ghost" type="button" id="hm-import">Import CSV</button>
-    <button class="btn ghost" type="button" id="hm-products">Products</button>
-    <button class="btn ghost" type="button" id="hm-settings">Settings</button>
-    <button class="btn ghost" type="button" id="hm-site">Back to site</button>
-    <button class="btn dark" type="button" id="hm-logout">Log out</button>
+<section class="hitmap" id="hitmap" aria-label="Staff workspace">
+ <header class="awl-staff-header">
+  <div class="awl-staff-identity"><span class="awl-staff-logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8.5 15.5a5.2 5.2 0 1 1 7 0l-.8 1.5H9.3zM9.6 20h4.8M12 2v1.4M4.5 6l1 1M19.5 6l-1 1"/></svg></span>Atlanta Wholesale LED</div>
+  <div class="awl-staff-segments" role="tablist" aria-label="Staff workspace">
+   <button type="button" data-staff-tab="prospects" role="tab" id="staff-tab-prospects" aria-controls="staff-prospects" aria-selected="true">Prospects</button>
+   <button type="button" data-staff-tab="counter" role="tab" id="staff-tab-counter" aria-controls="staff-counter" aria-selected="false" tabindex="-1">QuickBooks</button>
   </div>
-  <div class="hm-body">
+  <div class="awl-staff-actions"><button class="btn ghost" type="button" id="hm-site">Back to site</button><button class="btn dark" type="button" id="hm-logout">Log out</button></div>
+ </header>
+ <section class="awl-staff-panel" id="staff-prospects" role="tabpanel" aria-labelledby="staff-tab-prospects">
+  <div class="hm-top">
+   <div class="awl-prospect-title"><h2>Scouting prospects</h2><span class="stats" id="hm-stats" role="status"></span></div>
+   <div class="awl-prospect-actions">
+    <div class="awl-staff-segments awl-mobile-views" aria-label="Prospect view"><button type="button" data-staff-mobile="list" aria-pressed="true">List</button><button type="button" data-staff-mobile="map" aria-pressed="false">Map</button></div>
+    <button class="btn ghost" type="button" id="hm-add">Add prospect</button><button class="btn primary" type="button" id="hm-discover" style="padding:9px 14px;font-size:14px">Find businesses</button>
+    <details id="staff-tools" class="awl-tools"><summary class="btn ghost">Tools ▾</summary>
+     <div class="awl-tools-panel"><h3 class="awl-group-title">Lookups and automation</h3><div class="awl-group"><button class="btn ghost" type="button" id="hm-enrich">Find contacts</button><button class="btn ghost" type="button" id="hm-auto">Auto-find <span id="auto-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9AA3AD;margin-left:4px"></span></button></div><h3 class="awl-group-title">Organize</h3><div class="awl-group"><select id="hm-folder-open" class="btn ghost" style="padding:9px 12px;font-size:14px;max-width:220px"><option value="">Open folder…</option></select><button class="btn ghost" type="button" id="hm-folder-new">Create folder</button><button class="btn ghost" type="button" id="hm-import">Import CSV</button></div><h3 class="awl-group-title">Workspace</h3><div class="awl-group"><button class="btn ghost" type="button" id="hm-products">Products</button><button class="btn ghost" type="button" id="hm-settings">Settings</button></div><button type="button" id="staff-pawn" class="btn ghost">Pawn shops view</button>
+      <details class="awl-spend-disclosure"><summary>Usage and spend</summary>      <div id="spend" class="spend" title="Estimated from the panel’s own request counts; Google’s console lags a day">
+        <div class="spend-hd"><b>Spend · this month</b><span class="grow"></span><button type="button" id="spend-toggle" aria-label="Collapse">—</button></div>
+        <div id="spend-body"><div class="note" style="margin:0;padding:6px 0">loading…</div></div>
+      </div>
+</details>
+     </div>
+    </details>
+   </div>
+  </div>
+  <div class="hm-body" id="staff-hitmap-body" data-mobile-view="list">
     <aside class="hm-side" id="hm-side">
-      <div class="hm-tabs" role="tablist">
-        <button type="button" role="tab" aria-selected="true" data-tab="prospects">Prospects</button>
+      <div class="hm-tabs" role="tablist" aria-label="Prospect workflows">
+        <button type="button" role="tab" aria-selected="true" data-tab="prospects">Saved prospects</button>
         <button type="button" role="tab" aria-selected="false" data-tab="inbox">Inbox<span class="badge" id="unread-badge" hidden>0</span></button>
-        <button type="button" role="tab" aria-selected="false" data-tab="pawn">Pawn shops<span class="badge" id="pawn-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
-        <button type="button" role="tab" aria-selected="false" data-tab="followups">Follow-ups (flow)<span class="badge" id="fu-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
+        <button type="button" role="tab" aria-selected="false" class="awl-pane-optional" data-tab="pawn">Pawn shops<span class="badge" id="pawn-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
+        <button type="button" role="tab" aria-selected="false" data-tab="followups">Follow-ups<span class="badge" id="fu-badge" hidden style="background:var(--accent);color:var(--accent-ink)">0</span></button>
       </div>
       <div class="hm-fu" id="hm-fu">
         <div class="tools" style="display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);flex-wrap:wrap">
@@ -694,11 +788,12 @@
         </div>
         <div class="threads" id="threads"></div>
       </div>
+      <div class="awl-search-strip"><input id="f-q" type="search" aria-label="Search saved prospects" placeholder="Search saved prospects…"></div>
       <div id="scope-banner" class="scope-banner" hidden></div>
-      <div class="starthere" id="starthere"></div>
-      <div class="hm-collapsible" id="filters-wrap"><div class="hd">Filters <span class="note" id="filters-summary" style="margin:0;font-weight:400"></span><span class="chev">▾</span></div><div class="bd">
+      <details class="awl-today"><summary>Suggested next steps</summary><div class="starthere" id="starthere"></div></details>
+      <div class="hm-collapsible" id="filters-wrap"><div class="hd" role="button" tabindex="0" aria-expanded="false">Filters <span class="note" id="filters-summary" style="margin:0;font-weight:400"></span><span class="chev">▾</span></div><div class="bd">
       <div class="hm-filters">
-        <input class="full" id="f-q" type="search" placeholder="Type a target: gas stations, dealerships, a company name…">
+
         <div class="full" id="f-source" hidden style="font-size:13.5px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span id="f-source-text"></span><button class="btn primary" type="button" id="f-source-go" style="padding:6px 12px;font-size:13px">Quick pull (up to 60)</button><button class="btn dark" type="button" id="f-sweep" style="padding:6px 12px;font-size:13px">Sweep everything</button><select id="f-sweep-scope" style="padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper-2);color:var(--ink);font-size:13px"><option value="box">in the box I drew</option><option value="25">within 25 mi</option><option value="40" selected>within 40 mi</option><option value="60">within 60 mi</option><option value="100">within 100 mi</option><option value="ga">all of Georgia</option></select></div>
         <select id="f-radius"><option value="">Any distance (statewide, contacts only)</option><option value="3">Within 3 mi</option><option value="5">Within 5 mi</option><option value="10">Within 10 mi</option><option value="15">Within 15 mi</option><option value="25" selected>Within 25 mi</option><option value="40">Within 40 mi</option><option value="60">Within 60 mi</option><option value="100">Within 100 mi</option><option value="150">Within 150 mi</option></select>
         <div id="f-status" class="stchips" aria-label="Status filter"><button type="button" data-s="new" class="pill new" aria-pressed="false">new</button><button type="button" data-s="contacted" class="pill contacted" aria-pressed="false">contacted</button><button type="button" data-s="replied" class="pill replied" aria-pressed="false">replied</button><button type="button" data-s="called" class="pill called" aria-pressed="false">called</button><button type="button" data-s="customer" class="pill customer" aria-pressed="false">customer</button><button type="button" data-s="skip" class="pill skip" aria-pressed="false">skip</button></div>
@@ -720,14 +815,15 @@
       </div></div>
       <div class="area-note" id="folder-note" hidden style="background:var(--ink);color:var(--paper)"><span id="folder-text"></span><span class="grow"></span><button type="button" id="folder-select-all">Select all</button><button type="button" id="folder-rename">Rename</button><button type="button" id="folder-delete">Delete folder</button><button type="button" id="folder-close">Close</button></div>
       <div class="area-note" id="area-note" hidden><span id="area-text"></span><span class="grow"></span><button type="button" id="area-clear">Clear area</button></div>
-      <div class="selbar2" id="selbar2">
-        <button class="btn ghost" type="button" id="sel-all-btn">Select all shown</button>
+      <details class="awl-bulk-trigger" id="staff-bulk-tools" hidden><summary>Selection tools</summary><div><button class="btn ghost" type="button" id="sel-all-btn">Select all shown</button></div></details>
+      <div class="selbar2" id="selbar2" hidden>
+
         <button class="btn ghost" type="button" id="sel-none-btn" hidden>Clear selection</button>
         <button class="btn primary" type="button" id="sel-folder-btn" hidden>Add to folder</button>
         <button class="btn primary" type="button" id="sel-email-btn" hidden>Email</button>
         <span class="note" id="sel-note" style="margin:0"></span>
       </div>
-      <div class="hm-sel" hidden>
+      <details id="staff-selection-extra" class="awl-selected-extra" hidden><summary>More selected actions</summary><div class="hm-sel">
         <label><input type="checkbox" id="sel-all"> Select all shown</label>
         <span id="sel-count">0 selected</span>
         <span class="grow"></span>
@@ -737,14 +833,11 @@
         <button class="link" type="button" id="act-skip">Skip</button>
         <button class="link" type="button" id="act-delete">Delete</button>
       </div>
+</details>
       <div class="hm-list" id="hm-list"></div>
     </aside>
     <div class="hm-map">
       <div id="map"></div>
-      <div id="spend" class="spend" title="Estimated from the panel’s own request counts; Google’s console lags a day">
-        <div class="spend-hd"><b>Spend · this month</b><span class="grow"></span><button type="button" id="spend-toggle" aria-label="Collapse">—</button></div>
-        <div id="spend-body"><div class="note" style="margin:0;padding:6px 0">loading…</div></div>
-      </div>
       <div id="fu-chart" class="fu-chart" hidden>
         <div class="fu-chart-head">
           <button class="btn ghost" type="button" id="fu-prev" title="Previous industry" style="padding:6px 10px">◀</button>
@@ -767,6 +860,11 @@
       <div class="hm-detail" id="hm-detail"></div>
     </div>
   </div>
+ </section>
+ <section class="awl-staff-panel awl-counter" id="staff-counter" role="tabpanel" aria-labelledby="staff-tab-counter" hidden>
+  <div class="awl-counter-banner"><strong>QuickBooks counter</strong><span>Sample only · No QuickBooks connection · Nothing sent</span></div>
+  <iframe id="staff-counter-frame" title="QuickBooks quote draft (sample only)" sandbox="allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe>
+ </section>
 </section>
 
 <div class="modal" id="m-compose" role="dialog" aria-modal="true">
@@ -1390,7 +1488,7 @@ document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click
 document.querySelectorAll(".modal").forEach(m => m.addEventListener("click", e => { if (e.target === m) m.classList.remove("open"); }));
 
 const navLogin = $("nav-login");
-function refreshNav() { navLogin.textContent = session ? "Hit map" : "Log in"; }
+function refreshNav() { navLogin.textContent = session ? "Staff workspace" : "Log in"; }
 refreshNav();
 navLogin.addEventListener("click", e => { e.preventDefault(); if (session) openHitmap(); else { $("login-err").textContent = ""; openModal("m-login"); } });
 $("l-go").addEventListener("click", login);
@@ -1404,7 +1502,7 @@ async function login() {
   } catch (e) { $("login-err").textContent = e.message; }
   $("l-go").disabled = false;
 }
-function logout() { session = null; localStorage.removeItem("awl_session"); refreshNav(); document.body.classList.remove("admin"); }
+function logout() { staffResetView(); session = null; localStorage.removeItem("awl_session"); refreshNav(); document.body.classList.remove("admin"); }
 $("hm-logout").addEventListener("click", logout);
 $("hm-site").addEventListener("click", () => document.body.classList.remove("admin"));
 
@@ -1413,9 +1511,52 @@ const hm = { prospects: [], template: {}, selected: new Set(), map: null, marker
 const miles = (a, b) => { const R = 3958.8, toR = d => d * Math.PI / 180; const dLat = toR(b.lat - a.lat), dLng = toR(b.lng - a.lng); const h = Math.sin(dLat / 2) ** 2 + Math.cos(toR(a.lat)) * Math.cos(toR(b.lat)) * Math.sin(dLng / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+const staffTabs = [...document.querySelectorAll('.awl-staff-segments [data-staff-tab]')];
+const staffMobile = window.matchMedia('(max-width:760px)');
+let staffView = 'prospects';
+function staffSetMobileView(view) {
+  $('staff-hitmap-body').dataset.mobileView = view;
+  document.querySelectorAll('[data-staff-mobile]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.staffMobile === view)));
+  if (view === 'map' && staffMobile.matches) requestAnimationFrame(() => hm.map?.invalidateSize({pan:false}));
+}
+function staffSetView(view) {
+  if (!session || !['prospects','counter'].includes(view)) return;
+  staffView = view;
+  staffTabs.forEach(b => { const active = b.dataset.staffTab === view; b.setAttribute('aria-selected', String(active)); b.tabIndex = active ? 0 : -1; });
+  $('staff-prospects').hidden = view !== 'prospects';
+  $('staff-counter').hidden = view !== 'counter';
+  if (view === 'counter') {
+    const frame = $('staff-counter-frame');
+    if (!frame.hasAttribute('src')) frame.src = 'counter-quote-multistate-draft.html?embedded=staff';
+    $('staff-tools').open = false;
+  } else {
+    requestAnimationFrame(() => requestAnimationFrame(() => hm.map?.invalidateSize({pan:false})));
+  }
+}
+function staffResetView() {
+  staffView = 'prospects';$('staff-counter-frame').removeAttribute('src');
+  $('staff-counter').hidden = true;$('staff-prospects').hidden = false;$('staff-tools').open = false;
+  staffTabs.forEach(b => { const on=b.dataset.staffTab==='prospects';b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1; });
+  staffSetMobileView('list');
+}
+staffTabs.forEach((b,i) => {
+  b.addEventListener('click', () => staffSetView(b.dataset.staffTab));
+  b.addEventListener('keydown',e=>{
+    const k=e.key;if(!['ArrowLeft','ArrowRight','Home','End'].includes(k))return;
+    e.preventDefault();e.stopPropagation();const next=staffTabs[k==='Home'?0:k==='End'?staffTabs.length-1:(i+(k==='ArrowLeft'?-1:1)+staffTabs.length)%staffTabs.length];
+    staffSetView(next.dataset.staffTab);next.focus();
+  });
+});
+document.querySelectorAll('[data-staff-mobile]').forEach(b => b.addEventListener('click',()=>staffSetMobileView(b.dataset.staffMobile)));
+$('staff-pawn').addEventListener('click', () => {$('staff-tools').open=false;document.querySelector('.hm-tabs [data-tab=pawn]').click();staffSetMobileView('list');});
+const toolPanel=$('staff-tools');
+document.addEventListener('pointerdown',e=>{if(toolPanel.open&&!toolPanel.contains(e.target))toolPanel.open=false;});
+toolPanel.addEventListener('keydown',e=>{if(e.key==='Escape'&&toolPanel.open){toolPanel.open=false;toolPanel.querySelector('summary').focus();e.stopPropagation();}});
+
 async function openHitmap() {
   document.body.classList.add("admin");
   if (!hm.map) initMap();
+  staffSetView(staffView);
   await loadProspects();
 }
 function initMap() {
@@ -1434,11 +1575,11 @@ function initMap() {
   const move = ev => { if (!start) return; ev.preventDefault(); rect.setBounds(L.latLngBounds(start, toLatLng(ev))); };
   const up = () => { if (!start) return; const b = rect.getBounds(); hm.map.removeLayer(rect); rect = null; start = null; setDrawMode(false);
     if (b.getNorth() - b.getSouth() < 0.0005 && b.getEast() - b.getWest() < 0.0005) return;
-    setArea(b); filtered().forEach(p => hm.selected.add(p.id)); renderHitmap(); };
+    setArea(b); };
   mapEl.addEventListener("mousedown", down); mapEl.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
   mapEl.addEventListener("touchstart", down, { passive: false }); mapEl.addEventListener("touchmove", move, { passive: false }); window.addEventListener("touchend", up);
   hm.tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(hm.map);
-  let styleKey = localStorage.getItem("awl_map_style") || "standard";
+  let styleKey = localStorage.getItem("awl_map_style") || "grey";
   const applyStyle = k => { const el = document.getElementById("map"); el.classList.remove("style-grey", "style-dark"); if (k !== "standard") el.classList.add("style-" + k); };
   applyStyle(styleKey);
   const StyleCtl = L.Control.extend({ onAdd() {
@@ -1597,6 +1738,7 @@ function focusProspect(id) {
 /* ---- detail panel ---- */
 function openDetail(id) {
   const p = hm.prospects.find(x => x.id === id); if (!p) return;
+  if(staffMobile.matches) staffSetMobileView("map");
   hm.active = id;
   const d = $("hm-detail");
   d.innerHTML = `
@@ -1785,6 +1927,7 @@ document.querySelectorAll(".hm-tabs button").forEach(b => b.addEventListener("cl
   $("hm-side").classList.toggle("inbox", b.dataset.tab === "inbox");
   $("hm-side").classList.toggle("followups", b.dataset.tab === "followups");
   $("hm-side").classList.toggle("pawn", b.dataset.tab === "pawn");
+  if(staffMobile.matches) staffSetMobileView("list");
   pawnShow(b.dataset.tab === "pawn");
   $("fu-chart").hidden = b.dataset.tab !== "followups";
   if (b.dataset.tab === "inbox") loadInbox();
@@ -1926,6 +2069,7 @@ function renderInbox() {
 }
 $("threads").addEventListener("click", e => { const row = e.target.closest(".th"); if (!row) return; hm.thread = row.dataset.key; const t = buildThreads().find(x => x.key === hm.thread); if (t) openThread(t); });
 async function openThread(t) {
+  if(staffMobile.matches) staffSetMobileView("map");
   const unread = t.msgs.filter(m => m.direction === "in" && !m.is_read).map(m => m.id);
   if (unread.length) { try { await api("mark_read", { ids: unread }); t.msgs.forEach(m => { if (unread.includes(m.id)) m.is_read = true; }); } catch (e) {} }
   if (t.p && t.p.lat && t.p.lng) { hm.programmatic = true; hm.map.setView([t.p.lat, t.p.lng], Math.max(hm.map.getZoom(), 13)); setTimeout(() => { hm.programmatic = false; }, 600); const mk = hm.markers[t.p.id]; if (mk) { if (hm.cluster) hm.cluster.zoomToShowLayer(mk, () => mk.openPopup()); else mk.openPopup(); } }
@@ -2590,7 +2734,11 @@ function fzZoomAt(factor, cx, cy) {
 
 
 /* collapsible sections */
-document.querySelectorAll(".hm-collapsible > .hd").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
+document.querySelectorAll(".hm-collapsible > .hd").forEach(h => {
+  const toggle = () => {const on=h.parentElement.classList.toggle("open");if(h.hasAttribute("aria-expanded"))h.setAttribute("aria-expanded",String(on));};
+  h.addEventListener("click",toggle);
+  if(h.getAttribute("role")==="button") h.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggle();}});
+});
 function filtersSummary() {
   const bits = [];
   if ($("f-q").value.trim()) bits.push("“" + $("f-q").value.trim() + "”");
@@ -2661,6 +2809,10 @@ function renderScope() {
 $("scope-banner").addEventListener("click", e => { const b = e.target.closest("[data-scope]"); if (!b) return; if (b.dataset.scope === "folder") openFolder(null); if (b.dataset.scope === "area") setArea(null); });
 function renderSelBar() {
   const n = hm.selected.size, shown = filtered().length;
+  $("selbar2").hidden=!n; $("staff-selection-extra").hidden=!n;
+  if(!n) $("staff-selection-extra").open=false;
+  $("staff-bulk-tools").hidden=!shown || (n>=shown && n>0);
+  if(!n && !shown) $("staff-bulk-tools").open=false;
   $("sel-all-btn").textContent = `Select all ${shown.toLocaleString()} shown`; $("sel-all-btn").hidden = !shown || (n >= shown && n > 0);
   $("sel-none-btn").hidden = !n; $("sel-folder-btn").hidden = !n; $("sel-email-btn").hidden = !n;
   $("sel-folder-btn").textContent = `Add ${n.toLocaleString()} to folder`; $("sel-email-btn").textContent = `Email ${n.toLocaleString()}`;
